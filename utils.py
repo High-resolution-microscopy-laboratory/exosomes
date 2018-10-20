@@ -70,19 +70,11 @@ def export_shape_csv(output_file, shapes_dict, convert_f):
 
 
 def export_contours_csv(output_file, contours_dict):
-    header = "filename,file_size,file_attributes,region_count,region_id,region_shape_attributes,region_attributes\n"
-    lines = [header]
-    for file in contours_dict:
-        contours = contours_dict[file]
-        for i, contour in enumerate(contours):
-            shape = contour_to_shape(contour)
-            shape_str = json.dumps(shape)
-            shape_str = shape_str.replace('"', '""')
-            region_count = len(contours)
-            line = '{},{},{},{},{},"{}",{}\n'.format(file, 0, '"{}"', region_count, i, shape_str, '"{}"')
-            lines.append(line)
-    with open(output_file, 'w') as file:
-        file.writelines(lines)
+    export_shape_csv(output_file, contours_dict, contour_to_shape)
+
+
+def export_boxes_csv(output_file, boxes_dict):
+    export_shape_csv(output_file, boxes_dict, box_to_shape)
 
 
 def mark_to_boxes(img, mark_color):
@@ -92,7 +84,3 @@ def mark_to_boxes(img, mark_color):
     for contour in contours:
         boxes.append(cv.boundingRect(contour))
     return boxes
-
-
-def export_boxes_csv(output_file, boxes_dict):
-    export_shape_csv(output_file, boxes_dict, box_to_shape)
