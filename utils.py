@@ -43,6 +43,32 @@ def contour_to_shape(contour):
     return shape
 
 
+def box_to_shape(box):
+    return {
+        "name": "rect",
+        "x": box[0],
+        "y": box[1],
+        "width": box[2],
+        "height": box[3]
+    }
+
+
+def export_shape_csv(output_file, shapes_dict, convert_f):
+    header = "filename,file_size,file_attributes,region_count,region_id,region_shape_attributes,region_attributes\n"
+    lines = [header]
+    for file in shapes_dict:
+        shapes = shapes_dict[file]
+        for i, shape_obj in enumerate(shapes):
+            shape = convert_f(shape_obj)
+            shape_str = json.dumps(shape)
+            shape_str = shape_str.replace('"', '""')
+            region_count = len(shapes)
+            line = '{},{},{},{},{},"{}",{}\n'.format(file, 0, '"{}"', region_count, i, shape_str, '"{}"')
+            lines.append(line)
+    with open(output_file, 'w') as file:
+        file.writelines(lines)
+
+
 def export_contours_csv(output_file, contours_dict):
     header = "filename,file_size,file_attributes,region_count,region_id,region_shape_attributes,region_attributes\n"
     lines = [header]
@@ -57,3 +83,16 @@ def export_contours_csv(output_file, contours_dict):
             lines.append(line)
     with open(output_file, 'w') as file:
         file.writelines(lines)
+
+
+def mark_to_boxes(img, mark_color):
+    mask = cv.inRange(img, mark_color, mark_color)
+    _, contours, _ = cv.findContours(mask, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
+    boxes = []
+    for contour in contours:
+        boxes.append(cv.boundingRect(contour))
+    return boxes
+
+
+def export_boxes_csv(output_file, boxes_dict):
+    export_shape_csv(output_file, boxes_dict, box_to_shape)
