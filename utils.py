@@ -1,6 +1,7 @@
 import cv2 as cv
 import os
 import json
+import numpy as np
 
 
 def load_images(input_dir):
@@ -77,6 +78,12 @@ def export_boxes_csv(output_file, boxes_dict):
     export_shape_csv(output_file, boxes_dict, box_to_shape)
 
 
+def mark2cnt(img, mark_color):
+    mask = cv.inRange(img, mark_color, mark_color)
+    _, contours, _ = cv.findContours(mask, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
+    return contours
+
+
 def mark_to_boxes(img, mark_color):
     mask = cv.inRange(img, mark_color, mark_color)
     _, contours, _ = cv.findContours(mask, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
@@ -84,3 +91,19 @@ def mark_to_boxes(img, mark_color):
     for contour in contours:
         boxes.append(cv.boundingRect(contour))
     return boxes
+
+
+def get_mask(shape, contours, value, dtype=np.int8):
+    mask = np.zeros(shape, dtype=dtype)
+    color = tuple(value for i in range(shape[2]))
+    for cnt in contours:
+        cv.fillPoly(mask, [cnt], color)
+    return mask
+
+
+def iou(shape, contours1, contours2):
+    mask1 = get_mask(shape, contours1, 1)
+    mask2 = get_mask(shape, contours2, 1)
+    inter = mask1 * mask2
+    union = (mask1 + mask2) / 2
+    return np.sum(inter) / np.sum(union)
