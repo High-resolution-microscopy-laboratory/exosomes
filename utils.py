@@ -4,10 +4,13 @@ import json
 import numpy as np
 
 
-def load_images(input_dir):
+def load_images(input_dir, extensions=['png']):
     images = {}
     files = os.listdir(input_dir)
     for file in files:
+        ext = file.split('.')[-1]
+        if ext not in extensions:
+            continue
         path = os.path.join(input_dir, file)
         img = cv.imread(path, 1)
         images[file] = img
@@ -93,9 +96,9 @@ def mark_to_boxes(img, mark_color):
     return boxes
 
 
-def get_mask(shape, contours, value, dtype=np.int8):
+def get_mask(shape, contours, value, dtype=np.uint8):
     mask = np.zeros(shape, dtype=dtype)
-    color = tuple(value for i in range(shape[2]))
+    color = tuple([value] * shape[2])
     for cnt in contours:
         cv.fillPoly(mask, [cnt], color)
     return mask
@@ -107,3 +110,11 @@ def iou(shape, contours1, contours2):
     inter = mask1 * mask2
     union = (mask1 + mask2) / 2
     return np.sum(inter) / np.sum(union)
+
+
+def create_circle_contour(r):
+    d = 2 * r
+    mask = np.zeros((d, d, 1), dtype=np.uint8)
+    cv.circle(mask, (r, r), r, 250)
+    _, cnts, _ = cv.findContours(mask, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
+    return cnts[0]
