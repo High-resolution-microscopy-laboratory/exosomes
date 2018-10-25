@@ -21,7 +21,7 @@ import numpy as np
 import skimage.draw
 
 # Root directory of the project
-ROOT_DIR = os.path.abspath("../")
+ROOT_DIR = os.path.abspath("./")
 
 # Import Mask RCNN
 sys.path.append(ROOT_DIR)  # To find local version of the library
@@ -34,6 +34,8 @@ COCO_WEIGHTS_PATH = os.path.join(ROOT_DIR, "mask_rcnn_coco.h5")
 # Directory to save logs and model checkpoints, if not provided
 # through the command line argument --logs
 DEFAULT_LOGS_DIR = os.path.join(ROOT_DIR, "logs")
+
+EPOCHS = 15
 
 
 ############################################################
@@ -57,10 +59,23 @@ class VesicleConfig(Config):
     # Number of training steps per epoch
     STEPS_PER_EPOCH = 40
 
-    # Skip detections with < 90% confidence
+    # Skip detections with < 60% confidence
     DETECTION_MIN_CONFIDENCE = 0.6
 
+    # resnet 50 or resnet101
     BACKBONE = "resnet50"
+
+    # Resize image
+    # IMAGE_MIN_DIM = 512
+    # IMAGE_MAX_DIM = 512
+
+
+class VesicleInferenceConfig(VesicleConfig):
+    # Set batch size to 1 to run one image at a time
+    GPU_COUNT = 1
+    IMAGES_PER_GPU = 1
+    # Don't resize imager for inferencing
+    IMAGE_RESIZE_MODE = "pad64"
 
 
 ############################################################
@@ -164,7 +179,7 @@ class VesicleDataset(utils.Dataset):
             super(self.__class__, self).image_reference(image_id)
 
 
-def train(model):
+def train(model, epochs=EPOCHS):
     """Train the model."""
     # Training dataset.
     dataset_train = VesicleDataset()
@@ -183,7 +198,7 @@ def train(model):
     print("Training network heads")
     model.train(dataset_train, dataset_val,
                 learning_rate=config.LEARNING_RATE,
-                epochs=10,
+                epochs=epochs,
                 layers='heads')
 
 
@@ -210,6 +225,10 @@ if __name__ == '__main__':
                         default=DEFAULT_LOGS_DIR,
                         metavar="/path/to/logs/",
                         help='Logs and checkpoints directory (default=logs/)')
+    parser.add_argument('--epochs', required=False,
+                        type=int,
+                        default=EPOCHS,
+                        help='Number of epochs')
     args = parser.parse_args()
 
     # Validate arguments
@@ -219,6 +238,7 @@ if __name__ == '__main__':
     print("Weights: ", args.weights)
     print("Dataset: ", args.dataset)
     print("Logs: ", args.logs)
+    print("Epochs: ", args.epochs)
 
     # Configurations
     if args.command == "train":
@@ -270,7 +290,7 @@ if __name__ == '__main__':
 
     # Train or evaluate
     if args.command == "train":
-        train(model)
+        train(model, args.epochs)
     else:
         print("'{}' is not recognized. "
               "Use 'train'".format(args.command))
