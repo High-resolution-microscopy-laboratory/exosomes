@@ -47,6 +47,13 @@ def contour_to_shape(contour):
     return shape
 
 
+def contour2region(contour):
+    return {
+        "shape_attributes": contour_to_shape(contour),
+        "region_attributes": {}
+    }
+
+
 def box_to_shape(box):
     return {
         "name": "rect",
@@ -118,3 +125,52 @@ def create_circle_contour(r):
     cv.circle(mask, (r, r), r, 250)
     _, cnts, _ = cv.findContours(mask, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
     return cnts[0]
+
+
+def json2masks(file, imgs_dir, masks_dir, postfix='_mask'):
+    f = open(file)
+    region_data = json.load(f)
+    masks = {}
+    for key in region_data:
+        name = region_data[key]['filename']
+        img_path = os.path.join(imgs_dir, name)
+        img = cv.imread(img_path, 1)
+        mask = np.zeros((*img.shape[:2], 1), np.uint8)
+        regions = region_data[key]['regions']
+        for region in regions:
+            attrs = region['shape_attributes']
+            points_x = attrs['all_points_x']
+            points_y = attrs['all_points_y']
+            polygon = np.array(list(zip(points_x, points_y)))
+            polygon.resize((len(points_x), 1, 2))
+            cv.fillConvexPoly(mask, polygon, 255)
+        masks[name] = mask
+        ext = name.split('.')[-1]
+        base_name = name.replace('.' + ext, '')
+        path = os.path.join(masks_dir, '{}{}.{}'.format(base_name, postfix, ext))
+        cv.imwrite(path, mask)
+    return masks
+
+
+def masks2json(json_file, masks_dir, extensions=['png']):
+    region_data = {}
+    for file in os.listdir(masks_dir):
+        ext = file.split('.')[-1]
+        if ext not in extensions:
+            continue
+        path = os.path.join(masks_dir, file)
+        mask = cv.imread(path, 0)
+        _, contours, _ = cv.findContours(mask, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_TC89_KCOS)
+        regions = []
+        for cnt in contours:
+            epsilon = 0.01 * cv.arcLength(cnt, True)
+            approx = cv.approxPolyDP(cnt, epsilon, True)
+            regions.append(contour2region(approx))
+        region_data[file + '0'] = {
+            "filename": file,
+            "size": "0",
+            "regions": regions,
+            "file_attributes": {}
+        }
+    f = open(json_file, 'w+')
+    json.dump(region_data, f)
