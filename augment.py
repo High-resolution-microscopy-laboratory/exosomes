@@ -21,8 +21,8 @@ def augmentation(p=1):
 def apply(img_dir, mask_dir, output_dir, n=5):
     images = utils.load_images(img_dir)
     masks = utils.load_images(mask_dir)
-    aug_images = {}
-    aug_masks = {}
+    aug_images = images.copy()
+    aug_masks = masks.copy()
     for i in range(n):
         for name in images:
             img = images[name]
