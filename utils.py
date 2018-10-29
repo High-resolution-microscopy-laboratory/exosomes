@@ -4,7 +4,7 @@ import json
 import numpy as np
 
 
-def load_images(input_dir, extensions=['png']):
+def load_images(input_dir, extensions=('png', 'jpg', 'tif')):
     images = {}
     files = os.listdir(input_dir)
     for file in files:
@@ -152,7 +152,7 @@ def json2masks(file, imgs_dir, masks_dir, postfix='_mask'):
     return masks
 
 
-def masks2json(json_file, masks_dir, extensions=['png']):
+def masks2json(json_file, masks_dir, extensions=('png', 'tif', 'jpg')):
     region_data = {}
     for file in os.listdir(masks_dir):
         ext = file.split('.')[-1]
@@ -160,10 +160,12 @@ def masks2json(json_file, masks_dir, extensions=['png']):
             continue
         path = os.path.join(masks_dir, file)
         mask = cv.imread(path, 0)
+        kernel = cv.getStructuringElement(cv.MORPH_ELLIPSE, (7, 7))
+        mask = cv.morphologyEx(mask, cv.MORPH_OPEN, kernel)
         _, contours, _ = cv.findContours(mask, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_TC89_KCOS)
         regions = []
         for cnt in contours:
-            epsilon = 0.01 * cv.arcLength(cnt, True)
+            epsilon = 1.2
             approx = cv.approxPolyDP(cnt, epsilon, True)
             regions.append(contour2region(approx))
         region_data[file + '0'] = {
