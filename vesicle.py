@@ -51,13 +51,13 @@ class VesicleConfig(Config):
     NAME = "vesicle"
 
     # We use a GPU with 12GB memory, which can fit two images.
-    IMAGES_PER_GPU = 2
+    IMAGES_PER_GPU = 1
 
     # Number of classes (including background)
     NUM_CLASSES = 1 + 1  # Background + vesicle
 
     # Number of training steps per epoch
-    STEPS_PER_EPOCH = 40
+    STEPS_PER_EPOCH = 100
 
     # Skip detections with < 60% confidence
     DETECTION_MIN_CONFIDENCE = 0.6
@@ -74,8 +74,6 @@ class VesicleInferenceConfig(VesicleConfig):
     # Set batch size to 1 to run one image at a time
     GPU_COUNT = 1
     IMAGES_PER_GPU = 1
-    # Don't resize imager for inferencing
-    IMAGE_RESIZE_MODE = "pad64"
 
 
 ############################################################
