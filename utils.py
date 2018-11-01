@@ -130,6 +130,28 @@ def create_circle_contour(r):
     return cnts[0]
 
 
+def json2contours(file):
+    f = open(file)
+    region_data = json.load(f)
+    contours_dict = {}
+    for key, data in region_data.items():
+        name = data['filename']
+        regions = data['regions']
+        contours = []
+        for region in regions:
+            attrs = region['shape_attributes']
+            points_x = attrs['all_points_x']
+            points_y = attrs['all_points_y']
+            polygon = np.array(list(zip(points_x, points_y)))
+            polygon.resize((len(points_x), 1, 2))
+            # print('polygon: {}\n cnt: {}'.format(polygon, cnt))
+            contours.append(polygon)
+        # ext = name.split('.')[-1]
+        # base_name = name.replace('.' + ext, '')
+        contours_dict[name] = contours
+    return contours_dict
+
+
 def json2masks(file, imgs_dir, masks_dir, postfix='_mask'):
     f = open(file)
     region_data = json.load(f)
@@ -202,4 +224,5 @@ def image_masks2json(json_file, masks_dir, extensions=('png', 'tif', 'jpg')):
         path = os.path.join(masks_dir, file)
         mask = cv.imread(path, 0)
         masks[file] = mask
-    save_masks_as_json(json_file, masks)
+    region_data = masks2json(masks)
+    save_region_data(json_file, masks)

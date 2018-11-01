@@ -2,14 +2,25 @@ import cv2 as cv
 import numpy as np
 import pandas as pd
 import utils
+import os
 
 
 class ResultWrapper:
-    def __init__(self, results_dict) -> None:
-        self.results = results_dict
-        self.params_dict = get_params_from_results(results_dict)
+    def __init__(self, params_dict) -> None:
+        self.params_dict = params_dict
 
-    def get_df(self, fields=('id', 'score', 'a', 'b', 'area')):
+    @staticmethod
+    def from_json(file):
+        contours = utils.json2contours(file)
+        params_dict = get_params_from_contours(contours)
+        return ResultWrapper(params_dict)
+
+    @staticmethod
+    def from_result(results_dict):
+        params_dict = get_params_from_results(results_dict)
+        return ResultWrapper(params_dict)
+
+    def get_df(self, fields=('id', 'a', 'b', 'area')):
         table = []
         for name, params_list in self.params_dict.items():
             for p in params_list:
@@ -24,9 +35,32 @@ class ResultWrapper:
         region_data = utils.contours2json(contours_list_dict)
         utils.save_region_data(file, region_data)
 
-    def save_table(self, file):
-        writer = pd.ExcelWriter(file)
-        self.get_df().to_excel(writer)
+    def save_table(self, out_dir, file='results.csv'):
+        path = os.path.join(out_dir, file)
+        self.get_df().to_csv(path)
+
+
+def get_params_from_contours(contours_list_dict):
+    params_dict = {}
+    for name, cnt_list in contours_list_dict.items():
+        params_list = []
+        for i, cnt in enumerate(cnt_list):
+            if len(cnt) < 5:
+                continue
+            ellipse = cv.fitEllipse(cnt)
+            s1 = ellipse[1][0] / 2
+            s2 = ellipse[1][1] / 2
+            params = {
+                'id': i,
+                'cnt': cnt,
+                'ellipse': ellipse,
+                'a': max(s1, s2),
+                'b': min(s1, s2),
+                'area': cv.contourArea(cnt),
+            }
+            params_list.append(params)
+        params_dict[name] = params_list
+    return params_dict
 
 
 def get_params_from_result(result):
