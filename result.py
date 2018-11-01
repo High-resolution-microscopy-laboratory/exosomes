@@ -1,27 +1,39 @@
 import cv2 as cv
 import numpy as np
 import pandas as pd
+import utils
 
 
 class ResultWrapper:
     def __init__(self, results_dict) -> None:
         self.results = results_dict
+        self.params_dict = get_params_from_results(results_dict)
 
     def get_df(self, fields=('id', 'score', 'a', 'b', 'area')):
         table = []
-        params_dict = get_params_from_results(self.results)
-        for name, params_list in params_dict.items():
+        for name, params_list in self.params_dict.items():
             for p in params_list:
                 row = (name, *tuple(p[k] for k in fields))
                 table.append(row)
         return pd.DataFrame(table, columns=['name', *fields])
 
+    def save_annotation(self, file):
+        contours_list_dict = {name: [params['cnt'] for params in params_list]
+                              for name, params_list
+                              in self.params_dict.items()}
+        region_data = utils.contours2json(contours_list_dict)
+        utils.save_region_data(file, region_data)
+
+    def save_table(self, file):
+        writer = pd.ExcelWriter(file)
+        self.get_df().to_excel(writer)
+
 
 def get_params_from_result(result):
     params_list = []
     for i in range(result['masks'].shape[2]):
-        mask = result['masks'][:, :, i]
-        _, contours, _ = cv.findContours(mask.astype(np.uint8), cv.RETR_EXTERNAL, cv.CHAIN_APPROX_TC89_KCOS)
+        mask = result['masks'][:, :, i].astype(np.uint8)
+        _, contours, _ = cv.findContours(mask, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_TC89_KCOS)
         cnt = contours[0]
         if len(cnt) < 5:
             continue
@@ -36,7 +48,8 @@ def get_params_from_result(result):
             'a': max(s1, s2),
             'b': min(s1, s2),
             'area': cv.contourArea(cnt),
-            'box': result['rois'][i]
+            'box': result['rois'][i],
+            'mask': mask
         }
         params_list.append(params)
     return params_list

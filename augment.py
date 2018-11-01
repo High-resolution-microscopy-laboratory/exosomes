@@ -38,7 +38,7 @@ def apply(img_dir, mask_dir, output_dir, n=5):
         cv2.imwrite(path, mask)
 
     json_path = os.path.join(output_dir, 'via_region_data.json')
-    utils.masks2json(json_path, output_dir)
+    utils.image_masks2json(json_path, output_dir)
 
     for name in aug_masks:
         if '.png' in name:

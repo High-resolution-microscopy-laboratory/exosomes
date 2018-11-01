@@ -155,27 +155,51 @@ def json2masks(file, imgs_dir, masks_dir, postfix='_mask'):
     return masks
 
 
-def masks2json(json_file, masks_dir, extensions=('png', 'tif', 'jpg')):
+def contours2json(contours_list_dict):
     region_data = {}
+    for name, contours_list in contours_list_dict.items():
+        regions = []
+        for cnt in contours_list:
+            epsilon = 1.2
+            approx = cv.approxPolyDP(cnt, epsilon, True)
+            regions.append(contour2region(approx))
+        region_data[name + '0'] = {
+            "filename": name,
+            "size": "0",
+            "regions": regions,
+            "file_attributes": {}
+        }
+    return region_data
+
+
+def masks2json(masks_list_dict):
+    kernel = cv.getStructuringElement(cv.MORPH_ELLIPSE, (7, 7))
+    contours_list_dict = {}
+    for name, mask_list in masks_list_dict.items():
+        contours_list = []
+        for mask in mask_list:
+            mask = cv.morphologyEx(mask, cv.MORPH_OPEN, kernel)
+            _, contours, _ = cv.findContours(mask, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_TC89_KCOS)
+            epsilon = 1.2
+            cnt = contours[0]
+            approx = cv.approxPolyDP(cnt, epsilon, True)
+            contours_list.append(approx)
+        contours_list_dict[name] = contours_list
+    return contours2json(contours_list_dict)
+
+
+def save_region_data(file, region_data):
+    f = open(file, 'w+')
+    json.dump(region_data, f)
+
+
+def image_masks2json(json_file, masks_dir, extensions=('png', 'tif', 'jpg')):
+    masks = {}
     for file in os.listdir(masks_dir):
         ext = file.split('.')[-1]
         if ext not in extensions:
             continue
         path = os.path.join(masks_dir, file)
         mask = cv.imread(path, 0)
-        kernel = cv.getStructuringElement(cv.MORPH_ELLIPSE, (7, 7))
-        mask = cv.morphologyEx(mask, cv.MORPH_OPEN, kernel)
-        _, contours, _ = cv.findContours(mask, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_TC89_KCOS)
-        regions = []
-        for cnt in contours:
-            epsilon = 1.2
-            approx = cv.approxPolyDP(cnt, epsilon, True)
-            regions.append(contour2region(approx))
-        region_data[file + '0'] = {
-            "filename": file,
-            "size": "0",
-            "regions": regions,
-            "file_attributes": {}
-        }
-    f = open(json_file, 'w+')
-    json.dump(region_data, f)
+        masks[file] = mask
+    save_masks_as_json(json_file, masks)
