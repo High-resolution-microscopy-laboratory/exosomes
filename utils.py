@@ -17,10 +17,8 @@ def load_images(input_dir, extensions=('png', 'jpg', 'tif')):
     return images
 
 
-def prepare_images(input_dir, output_dir, ext='.png', size=1024):
-    images = load_images(input_dir)
-    for name in images:
-        image = images[name]
+def write_images(images, output_dir, ext='.png', size=1024):
+    for name, image in images.items():
         h = image.shape[0]
         w = image.shape[1]
         ratio = size / max(h, w)
@@ -28,6 +26,11 @@ def prepare_images(input_dir, output_dir, ext='.png', size=1024):
         new_name = name.replace('.tif', ext)
         out_path = os.path.join(output_dir, new_name)
         cv.imwrite(out_path, resized)
+
+
+def prepare_images(input_dir, output_dir, ext='.png', size=1024):
+    images = load_images(input_dir)
+    write_images(images, output_dir, ext, size)
 
 
 def contour_to_shape(contour):
