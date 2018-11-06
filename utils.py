@@ -225,4 +225,4 @@ def image_masks2json(json_file, masks_dir, extensions=('png', 'tif', 'jpg')):
         mask = cv.imread(path, 0)
         masks[file] = mask
     region_data = masks2json(masks)
-    save_region_data(json_file, masks)
+    save_region_data(json_file, region_data)
