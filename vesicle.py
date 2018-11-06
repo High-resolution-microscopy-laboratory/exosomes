@@ -1,23 +1,20 @@
 #!/usr/bin/env python3
 
-import utils
 import os
-
-# Mask RCNN
-import tensorflow as tf
-from mrcnn import utils
-import mrcnn.model as modellib
-
-import detector
-import utils
 import result
 
 IMAGES_DIR = 'images'
 
 
 def detect(input_dir, output_dir, weights_path):
+    # Mask RCNN
+    import tensorflow as tf
+    import mrcnn.model as modellib
+
+    import detector
+    import utils
+
     # Подготовка изображений
-    # prepared_images_dir = os.path.join(output_dir, 'images')
     prepared_images_dir = output_dir
     os.makedirs(prepared_images_dir, exist_ok=True)
     utils.prepare_images(input_dir, prepared_images_dir)
