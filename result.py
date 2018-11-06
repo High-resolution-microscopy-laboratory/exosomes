@@ -51,7 +51,7 @@ def get_params_from_contours(contours_list_dict):
             s1 = ellipse[1][0] / 2
             s2 = ellipse[1][1] / 2
             params = {
-                'id': i,
+                'id': i + 1,
                 'cnt': cnt,
                 'ellipse': ellipse,
                 'a': max(s1, s2),
@@ -75,7 +75,7 @@ def get_params_from_result(result):
         s1 = ellipse[1][0] / 2
         s2 = ellipse[1][1] / 2
         params = {
-            'id': i,
+            'id': i + 1,
             'cnt': cnt,
             'score': result['scores'][i],
             'ellipse': ellipse,
