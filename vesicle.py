@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 
 import os
+import shutil
 import result
 
-IMAGES_DIR = 'images'
+DEFAULT_FILE_NAME = 'via_region_data.json'
+DETECTOR_FILE_NAME = 'detector_region_data.json'
 
 
 def detect(input_dir, output_dir, weights_path):
@@ -35,16 +37,20 @@ def detect(input_dir, output_dir, weights_path):
 
     # Экспорт разметки
     results = result.ResultWrapper.from_result(results_dict)
-    results.save_annotation(os.path.join(prepared_images_dir, 'via_region_data.json'))
-    print('via_region_data.json saved in')
-    print(os.path.abspath(prepared_images_dir))
+    results.save_annotation(os.path.join(prepared_images_dir, DETECTOR_FILE_NAME))
+    print("""
+    {} saved in
+    {}/
+    """.format(DETECTOR_FILE_NAME,
+               os.path.abspath(prepared_images_dir)))
 
 
-def export_results(out_dir, json_file='via_region_data.json'):
-    json_path = os.path.join(out_dir, json_file)
-    results = result.ResultWrapper.from_json(json_path)
-    table_path = os.path.join(out_dir)
-    results.save_table(table_path)
+def export_results(input_dir, out_dir):
+    input_path = os.path.join(input_dir, DEFAULT_FILE_NAME)
+    output_path = os.path.join(out_dir, DEFAULT_FILE_NAME)
+    results = result.ResultWrapper.from_json(input_path)
+    results.save_table(out_dir)
+    shutil.move(input_path, output_path)
 
 
 if __name__ == '__main__':
@@ -71,4 +77,4 @@ if __name__ == '__main__':
         detect(args.input_dir, args.output_dir, args.weights)
 
     if args.command == 'export':
-        export_results(args.output_dir)
+        export_results(args.input_dir, args.output_dir)
