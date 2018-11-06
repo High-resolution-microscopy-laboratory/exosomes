@@ -40,25 +40,31 @@ class ResultWrapper:
         self.get_df().to_csv(path)
 
 
+def extract_contour_params(i, cnt):
+    if len(cnt) < 5:
+        return None
+    ellipse = cv.fitEllipse(cnt)
+    s1 = ellipse[1][0] / 2
+    s2 = ellipse[1][1] / 2
+    params = {
+        'id': i + 1,
+        'cnt': cnt,
+        'ellipse': ellipse,
+        'a': max(s1, s2),
+        'b': min(s1, s2),
+        'area': cv.contourArea(cnt),
+    }
+    return params
+
+
 def get_params_from_contours(contours_list_dict):
     params_dict = {}
     for name, cnt_list in contours_list_dict.items():
         params_list = []
         for i, cnt in enumerate(cnt_list):
-            if len(cnt) < 5:
-                continue
-            ellipse = cv.fitEllipse(cnt)
-            s1 = ellipse[1][0] / 2
-            s2 = ellipse[1][1] / 2
-            params = {
-                'id': i + 1,
-                'cnt': cnt,
-                'ellipse': ellipse,
-                'a': max(s1, s2),
-                'b': min(s1, s2),
-                'area': cv.contourArea(cnt),
-            }
-            params_list.append(params)
+            params = extract_contour_params(i, cnt)
+            if params:
+                params_list.append(params)
         params_dict[name] = params_list
     return params_dict
 
@@ -69,22 +75,15 @@ def get_params_from_result(result):
         mask = result['masks'][:, :, i].astype(np.uint8)
         _, contours, _ = cv.findContours(mask, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_TC89_KCOS)
         cnt = contours[0]
-        if len(cnt) < 5:
+        params = extract_contour_params(i, cnt)
+        if not params:
             continue
-        ellipse = cv.fitEllipse(cnt)
-        s1 = ellipse[1][0] / 2
-        s2 = ellipse[1][1] / 2
-        params = {
-            'id': i + 1,
-            'cnt': cnt,
+        ext_params = {
             'score': result['scores'][i],
-            'ellipse': ellipse,
-            'a': max(s1, s2),
-            'b': min(s1, s2),
-            'area': cv.contourArea(cnt),
             'box': result['rois'][i],
             'mask': mask
         }
+        params.update(ext_params)
         params_list.append(params)
     return params_list
 
