@@ -5,7 +5,7 @@ import shutil
 import result
 
 DEFAULT_FILE_NAME = 'via_region_data.json'
-DETECTOR_FILE_NAME = 'detector_region_data.json'
+DETECTOR_FILE_NAME = 'via_region_data_detect.json'
 
 
 def detect(input_dir, output_dir, weights_path):
@@ -32,8 +32,8 @@ def detect(input_dir, output_dir, weights_path):
     results_dict = {}
     for i, name in enumerate(images):
         img = images[name]
-        print('{}/{}\t{}'.format(i + 1, len(images), name))
         results_dict[name], = model.detect([img], verbose=0)
+        print('{}/{}\t{}'.format(i + 1, len(images), name))
 
     # Экспорт разметки
     results = result.ResultWrapper.from_result(results_dict)
@@ -48,9 +48,15 @@ def detect(input_dir, output_dir, weights_path):
 def export_results(input_dir, out_dir):
     input_path = os.path.join(input_dir, DEFAULT_FILE_NAME)
     output_path = os.path.join(out_dir, DEFAULT_FILE_NAME)
-    results = result.ResultWrapper.from_json(input_path)
+
+    if not os.path.exists(input_path):
+        input_path = os.path.join(input_dir, DETECTOR_FILE_NAME)
+        shutil.copy(input_path, output_path)
+    else:
+        shutil.move(input_path, output_path)
+
+    results = result.ResultWrapper.from_json(output_path)
     results.save_table(out_dir)
-    shutil.move(input_path, output_path)
 
 
 if __name__ == '__main__':
@@ -61,10 +67,10 @@ if __name__ == '__main__':
     parser.add_argument('command',
                         metavar="'<command>'",
                         help="'detect' or 'export'")
-    parser.add_argument('--input_dir', required=True,
+    parser.add_argument('--input_dir', '-i', required=False,
                         metavar='/path/to/input/images/',
                         help='Directory of the input images')
-    parser.add_argument('--output_dir', required=True,
+    parser.add_argument('--output_dir', '-o', required=False,
                         metavar='/path/to/output/dir/',
                         help='Directory for the output data')
     parser.add_argument('--weights', required=False,
@@ -74,7 +80,19 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     if args.command == 'detect':
-        detect(args.input_dir, args.output_dir, args.weights)
+        if args.input_dir and args.output_dir:
+            detect(args.input_dir, args.output_dir, args.weights)
+        else:
+            print('Arguments --input_dir and --output_dir are required for detection')
 
     if args.command == 'export':
-        export_results(args.input_dir, args.output_dir)
+        if args.input_dir or args.output_dir:
+            # Один из аргументов можно опустить
+            input_dir = args.input_dir or args.output_dir
+            output_dir = args.output_dir or args.input_dir
+            is_same_dir = input_dir == output_dir
+            # print(is_same_dir)
+            # input_file_name = DETECTOR_FILE_NAME if is_same_dir else DETECTOR_FILE_NAME
+            export_results(input_dir, output_dir)
+        else:
+            print('--input_dir or --output_dir are required for export')
