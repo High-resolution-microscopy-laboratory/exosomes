@@ -6,15 +6,15 @@
 3. Экспорт таблицы c параметрами везикул
 
 ## Установка
-Нужно установить Mask RCNN по этой инструкции:
-https://github.com/matterport/Mask_RCNN#installation
-
-
+### Python
 ```
 pip install -r requirements.txt
 ```
 Для работы нужно [скачать](https://bitbucket.org/vergilius/vesicles/downloads/)
 и сохранить веса обученной модели в корне проекта в директории `models`
+
+### Docker
+Coming soon
 
 ## Использование
 ### Запуск детектора

@@ -1,0 +1,5 @@
+/.env/
+/.test_env/
+/.ipynb_checkpoints/
+/data/
+/logs/
