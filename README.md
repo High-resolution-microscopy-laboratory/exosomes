@@ -6,6 +6,8 @@
 3. Экспорт таблицы c параметрами везикул
 
 ## Установка
+
+Можно установить необходимые зависимости через pip или использовать собранный docker контейнер
 ### Python
 ```
 pip install -r requirements.txt
@@ -14,7 +16,10 @@ pip install -r requirements.txt
 и сохранить веса обученной модели в корне проекта в директории `models`
 
 ### Docker
-Coming soon
+
+https://docs.docker.com/install/
+
+`docker pull exactly/vesicles`
 
 ## Использование
 ### Запуск детектора
@@ -56,6 +61,21 @@ Coming soon
 или
 
 `vesicle.py export -i path/to/output`
+
+### Docker
+
+`vesicle.sh <command> <root> <input_dir> <output_dir>`
+
+Пример:
+
+`/home/user/images_dir/` - тут лежат изображения
+
+`/home/user/results_dir/` - сюда будет записан результат
+
+`vesicle.sh detect /home/user/ images_dir results_dir`
+
+`vesicle.sh export results_dir`
+
 
 ### Структура директории с результатами
 
