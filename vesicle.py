@@ -6,6 +6,7 @@ import result
 
 DEFAULT_FILE_NAME = 'via_region_data.json'
 DETECTOR_FILE_NAME = 'via_region_data_detect.json'
+DEFAULT_MODEL_PATH = 'models/final.h5'
 
 
 def detect(input_dir, output_dir, weights_path):
@@ -63,36 +64,26 @@ if __name__ == '__main__':
     import argparse
 
     parser = argparse.ArgumentParser(
-        description='Train Mask R-CNN to detect vesicle')
+        description='Run Mask R-CNN to detect vesicle')
     parser.add_argument('command',
-                        metavar="'<command>'",
                         help="'detect' or 'export'")
-    parser.add_argument('--input_dir', '-i', required=False,
-                        metavar='/path/to/input/images/',
+    parser.add_argument('input_dir',
                         help='Directory of the input images')
-    parser.add_argument('--output_dir', '-o', required=False,
-                        metavar='/path/to/output/dir/',
+    parser.add_argument('output_dir', nargs='?',
                         help='Directory for the output data')
     parser.add_argument('--weights', required=False,
-                        default='models/final.h5',
-                        metavar='/path/to/model/',
-                        help='Model weights path (default=models/final.h5)')
+                        default=DEFAULT_MODEL_PATH,
+                        help='Model weights path (default={})'.format(DEFAULT_MODEL_PATH))
     args = parser.parse_args()
 
     if args.command == 'detect':
         if args.input_dir and args.output_dir:
             detect(args.input_dir, args.output_dir, args.weights)
         else:
-            print('Arguments --input_dir and --output_dir are required for detection')
+            print('Arguments input_dir and output_dir are required for detection')
 
     if args.command == 'export':
-        if args.input_dir or args.output_dir:
-            # Один из аргументов можно опустить
-            input_dir = args.input_dir or args.output_dir
-            output_dir = args.output_dir or args.input_dir
-            is_same_dir = input_dir == output_dir
-            # print(is_same_dir)
-            # input_file_name = DETECTOR_FILE_NAME if is_same_dir else DETECTOR_FILE_NAME
-            export_results(input_dir, output_dir)
-        else:
-            print('--input_dir or --output_dir are required for export')
+        if not args.input_dir:
+            print('input_dir is required for export')
+        output_dir = args.output_dir or args.input_dir
+        export_results(args.input_dir, output_dir)

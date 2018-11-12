@@ -7,7 +7,7 @@
 
 ## Установка
 
-Можно установить необходимые зависимости через pip или использовать собранный docker контейнер
+Можно установить необходимые зависимости через pip или использовать docker контейнер
 ### Python
 ```
 pip install -r requirements.txt
@@ -24,17 +24,13 @@ https://docs.docker.com/install/
 ## Использование
 ### Запуск детектора
 
-`python vesicle.py detect --input_dir path/to/images/ --output_dir path/to/output/`
+`python vesicle.py detect <input_dir> <output_dir>`
 
-или
+`input_dir` - директория с исходными изображениями
 
-`vesicle.py detect -i path/to/images/ -o path/to/output/`
+`output_dir` - директория в которую будут записаны предобработанные изображения и файл разметки
 
-`--input_dir` - директория с исходными изображениями
-
-`--output_dir` - директория в которую будут записаны предобработанные изображения и файл разметки
-
-После завершения работы детектора в `--output_dir` будет доступен файл разметки `via_region_data.json`
+После завершения работы детектора в `output_dir` будет доступен файл разметки `via_region_data_detect.json`
 его можно загрузить в [VIA](http://www.robots.ox.ac.uk/~vgg/software/via/) для просмотра и исправления
 
 Исправленный файл нужно экспортировать и сохранить `Annotation -> Export Annotations (as json)`
@@ -42,25 +38,17 @@ https://docs.docker.com/install/
 
 ### Экспорт результатов
 
-`python vesicle.py export --input_dir path/to/images/ --output_dir path/to/output/`
+`python vesicle.py export <input_dir> <output_dir>`
 
-или
+`input_dir` - директория содержащая исправленный `via_region_data.json`
 
-`vesicle.py export -i path/to/images/ -o path/to/output/`
+`output_dir` - директория в которую будет записана таблица с результатами `results.csv`
 
-`--input_dir` - директория содержащая исправленный `via_region_data.json`
-
-`--output_dir` - директория в которую будет записана таблица с результатами `results.csv`
-
-Если не было ручных исправлений можно не экспортировать файл с разметкой и просто указать директорию с `via_region_data_detect.json` в качестве любого из параметров `--input_dir` или `--output_dir` (они будут совпадать и второй можно не указывать)
+Если не было ручных исправлений можно не экспортировать файл с разметкой и просто указать директорию с `via_region_data_detect.json` 
 
 Например
 
-`vesicle.py export -input_dir path/to/output`
-
-или
-
-`vesicle.py export -i path/to/output`
+`vesicle.py export path/to/output`
 
 ### Docker
 
