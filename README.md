@@ -52,6 +52,8 @@ https://docs.docker.com/install/
 
 ### Docker
 
+Для работы с файлами в контейнере нужно примонтировать локальную директорию с файлами в папку `/app/data` в контейнере. Для упрощения работы и вызова команд есть скрипт-обертка `vesicle.sh` и `vesicle.bat`
+
 `vesicle.sh <command> <root> <input_dir> <output_dir>`
 
 Пример:
