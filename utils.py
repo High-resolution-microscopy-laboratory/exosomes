@@ -2,6 +2,8 @@ import cv2 as cv
 import os
 import json
 import numpy as np
+from pathlib import Path
+import shutil
 
 
 def load_images(input_dir, extensions=('png', 'jpg', 'tif')):
@@ -202,10 +204,12 @@ def masks2json(masks_list_dict):
         for mask in mask_list:
             mask = cv.morphologyEx(mask, cv.MORPH_OPEN, kernel)
             _, contours, _ = cv.findContours(mask, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_TC89_KCOS)
-            epsilon = 1.2
-            cnt = contours[0]
-            approx = cv.approxPolyDP(cnt, epsilon, True)
-            contours_list.append(approx)
+            if not contours:
+                continue
+            for cnt in contours:
+                epsilon = 1.2
+                approx = cv.approxPolyDP(cnt, epsilon, True)
+                contours_list.append(approx)
         contours_list_dict[name] = contours_list
     return contours2json(contours_list_dict)
 
@@ -223,6 +227,43 @@ def image_masks2json(json_file, masks_dir, extensions=('png', 'tif', 'jpg')):
             continue
         path = os.path.join(masks_dir, file)
         mask = cv.imread(path, 0)
-        masks[file] = mask
+        masks_list = masks.get(file, [])
+        masks_list.append(mask)
+        masks[file] = masks_list
     region_data = masks2json(masks)
     save_region_data(json_file, region_data)
+
+
+def merge_data(in_dir: str, out_dir: str):
+    """
+    Объединяет изображения и файл разметки
+    :param in_dir: директория, которая содержит вложенные директории с изображениями и разметкой
+    :param out_dir: директория в которую будут записаны изображения из поддиректорий
+    и общий файл с разметкой via_region_data.json
+    """
+
+    out_path = Path(out_dir)
+    if not out_path.exists():
+        out_path.mkdir()
+
+    final_region_data = {}
+
+    i = 0
+    for path in Path(in_dir).iterdir():
+        if not path.is_dir():
+            continue
+        region_data_path = path / 'via_region_data.json'
+        region_data = json.load(region_data_path.open())
+        for key, value in region_data.items():
+            filename = value['filename']
+            name, ext = filename.rsplit('.', 1)
+            print(key, filename)
+            new_filename = '{}.{}'.format(i, ext)
+            new_key = new_filename + str(value['size'])
+            print(new_key, new_filename)
+            value['filename'] = new_filename
+            final_region_data[new_key] = value
+            # копирование файла с новым именем
+            shutil.copy(str(path / filename), str(out_path / new_filename))
+            i += 1
+    json.dump(final_region_data, (out_path / 'via_region_data.json').open('w'))

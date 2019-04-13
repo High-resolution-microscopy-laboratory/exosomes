@@ -1,7 +1,7 @@
 import cv2
 import os
 from albumentations import (
-    HorizontalFlip, ShiftScaleRotate, RandomContrast, RandomBrightness, OneOf, Compose
+    HorizontalFlip, VerticalFlip, ShiftScaleRotate, RandomContrast, RandomBrightness, OneOf, Compose
 )
 
 import utils
@@ -13,12 +13,12 @@ def augmentation(p=1):
             RandomBrightness(limit=0.1, p=0.5),
             RandomContrast(limit=0.1, p=0.5),
         ]),
-        ShiftScaleRotate(scale_limit=0, border_mode=cv2.BORDER_CONSTANT),
-        HorizontalFlip()
+        HorizontalFlip(),
+        VerticalFlip(),
     ], p=p)
 
 
-def apply(img_dir, mask_dir, output_dir, n=5):
+def apply(img_dir, mask_dir, output_dir, n=3):
     images = utils.load_images(img_dir)
     masks = utils.load_images(mask_dir)
     aug_images = images.copy()
