@@ -1,13 +1,12 @@
-from utils import merge_data, json2masks
+from utils import merge_data, json2masks, json2separated_masks
 import augment
 import shutil
-import os
 from pathlib import Path
 
-NEW_DATA_DIR = 'test_data/data'
-OUT_DIR = 'test_data/train'
-MASK_DIR = 'test_data/masks'
-TMP_DIR = 'test_data/tmp'
+NEW_DATA_DIR = 'data/new'
+OUT_DIR = 'data/train'
+MASK_DIR = 'data/masks'
+TMP_DIR = 'data/tmp'
 
 if __name__ == '__main__':
     # Подготовка и очистка директорий
@@ -19,7 +18,7 @@ if __name__ == '__main__':
     # Объединение данных из разных папок
     merge_data(NEW_DATA_DIR, TMP_DIR)
     # Создание масок
-    json2masks(TMP_DIR + '/via_region_data.json', TMP_DIR, MASK_DIR, postfix='')
+    json2separated_masks(TMP_DIR + '/via_region_data.json', TMP_DIR, MASK_DIR, postfix='')
     # Аугментации
-    augment.apply(TMP_DIR, MASK_DIR, OUT_DIR, n=2)
+    augment.apply(TMP_DIR, MASK_DIR, OUT_DIR, n=3)
 

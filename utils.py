@@ -4,6 +4,7 @@ import json
 import numpy as np
 from pathlib import Path
 import shutil
+from typing import List
 
 
 def load_images(input_dir, extensions=('png', 'jpg', 'tif')):
@@ -179,6 +180,31 @@ def json2masks(file, imgs_dir, masks_dir, postfix='_mask'):
     return masks
 
 
+def json2separated_masks(file, imgs_dir, masks_dir, postfix='_mask'):
+    f = open(file)
+    region_data = json.load(f)
+    masks = {}
+    for key in region_data:
+        name = region_data[key]['filename']
+        img_path = os.path.join(imgs_dir, name)
+        img = cv.imread(img_path, 1)
+        mask = np.zeros((*img.shape[:2], 1), np.uint8)
+        regions = region_data[key]['regions']
+        for i, region in enumerate(regions):
+            attrs = region['shape_attributes']
+            points_x = attrs['all_points_x']
+            points_y = attrs['all_points_y']
+            polygon = np.array(list(zip(points_x, points_y)))
+            polygon.resize((len(points_x), 1, 2))
+            cv.fillConvexPoly(mask, polygon, (i + 1) * 20)
+        masks[name] = mask
+        ext = name.split('.')[-1]
+        base_name = name.replace('.' + ext, '')
+        path = os.path.join(masks_dir, '{}{}.{}'.format(base_name, postfix, ext))
+        cv.imwrite(path, mask)
+    return masks
+
+
 def contours2json(contours_list_dict):
     region_data = {}
     for name, contours_list in contours_list_dict.items():
@@ -227,9 +253,7 @@ def image_masks2json(json_file, masks_dir, extensions=('png', 'tif', 'jpg')):
             continue
         path = os.path.join(masks_dir, file)
         mask = cv.imread(path, 0)
-        masks_list = masks.get(file, [])
-        masks_list.append(mask)
-        masks[file] = masks_list
+        masks[file] = extract_masks(mask)
     region_data = masks2json(masks)
     save_region_data(json_file, region_data)
 
@@ -267,3 +291,23 @@ def merge_data(in_dir: str, out_dir: str):
             shutil.copy(str(path / filename), str(out_path / new_filename))
             i += 1
     json.dump(final_region_data, (out_path / 'via_region_data.json').open('w'))
+
+
+def extract_masks(mask) -> List:
+    """
+    Выделяет бинарные маски из монолитной серой маски
+    :param mask: серая маска в которой значение пикселя соответствует классу
+    :return: список бинарных масок
+    """
+    masks = []
+    classes = set()
+    for row in mask:
+        for v in row:
+            classes.add(v)
+    classes.remove(0)  # удаляем фон
+    for c in classes:
+        m = mask.copy()
+        m[m != c] = 0
+        m[m == c] = 255
+        masks.append(m)
+    return masks
