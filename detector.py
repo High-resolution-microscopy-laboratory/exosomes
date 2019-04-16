@@ -3,13 +3,13 @@ Usage: import the module (see Jupyter notebooks for examples), or run from
        the command line as such:
 
     # Train a new model starting from pre-trained COCO weights
-    python3 vesicle.py train --dataset=/path/to/vesicles/dataset --weights=coco
+    python3 detector.py train --dataset=/path/to/vesicles/dataset --weights=coco
 
     # Resume training a model that you had trained earlier
-    python3 vesicle.py train --dataset=/path/to/vesicles/dataset --weights=last
+    python3 detector.py train --dataset=/path/to/vesicles/dataset --weights=last
 
     # Train a new model starting from ImageNet weights
-    python3 vesicle.py train --dataset=/path/to/vesicles/dataset --weights=imagenet
+    python3 detector.py train --dataset=/path/to/vesicles/dataset --weights=imagenet
 
 """
 
@@ -57,7 +57,7 @@ class VesicleConfig(Config):
     NUM_CLASSES = 1 + 1  # Background + vesicle
 
     # Number of training steps per epoch
-    STEPS_PER_EPOCH = 100
+    STEPS_PER_EPOCH = 384
 
     # Skip detections with < 60% confidence
     DETECTION_MIN_CONFIDENCE = 0.6
