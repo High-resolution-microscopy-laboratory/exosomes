@@ -35,7 +35,7 @@ COCO_WEIGHTS_PATH = os.path.join(ROOT_DIR, "mask_rcnn_coco.h5")
 # through the command line argument --logs
 DEFAULT_LOGS_DIR = os.path.join(ROOT_DIR, "logs")
 
-EPOCHS = 15
+EPOCHS = 2
 
 
 ############################################################
@@ -44,7 +44,7 @@ EPOCHS = 15
 
 
 class VesicleConfig(Config):
-    """Configuration for training on the toy  dataset.
+    """Configuration for training on the dataset.
     Derives from the base Config class and overrides some values.
     """
     # Give the configuration a recognizable name
