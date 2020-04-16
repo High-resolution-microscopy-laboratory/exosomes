@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block body %}
+    <h1 class="text-center">Vesicles</h1>
+    <form action="upload" method="post" enctype="multipart/form-data" class="form-inline, text-center">
+        <div class="form-group">
+            <input type="file" name="files" id="files" class="form-control-file, text-center"
+                   multiple/>
+            <button type="submit" value="Upload Image" name="submit" class="btn btn-primary">Submit</button>
+        </div>
+    </form>
+{% endblock %}
