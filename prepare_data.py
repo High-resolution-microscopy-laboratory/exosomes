@@ -1,4 +1,4 @@
-from utils import merge_data, json2masks, json2separated_masks
+from utils import merge_data, json2separated_masks
 import augment
 import shutil
 from pathlib import Path

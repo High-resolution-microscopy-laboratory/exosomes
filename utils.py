@@ -4,7 +4,9 @@ import json
 import numpy as np
 from pathlib import Path
 import shutil
-from typing import List
+from typing import List, Dict
+
+Images = Dict[str, np.ndarray]
 
 
 def load_images(input_dir, extensions=('png', 'jpg', 'tif')):
@@ -20,20 +22,37 @@ def load_images(input_dir, extensions=('png', 'jpg', 'tif')):
     return images
 
 
-def write_images(images, output_dir, ext='.png', size=1024):
+def resize(image: np.ndarray, size=1024) -> np.ndarray:
+    h = image.shape[0]
+    w = image.shape[1]
+    ratio = size / max(h, w)
+    return cv.resize(image, None, fx=ratio, fy=ratio)
+
+
+def resize_images(images: Images, size=1024) -> Images:
+    return {name: resize(img, size) for name, img in images.items()}
+
+
+def write_images(images: Images, output_dir, ext='png', makedirs=True):
+    if not os.path.exists(output_dir) and makedirs:
+        os.makedirs(output_dir, exist_ok=True)
     for name, image in images.items():
-        h = image.shape[0]
-        w = image.shape[1]
-        ratio = size / max(h, w)
-        resized = cv.resize(image, None, fx=ratio, fy=ratio)
-        new_name = name.replace('.tif', ext)
+        name, old_ext = name.rsplit('.', 1)
+        new_name = f'{name}.{ext}'
         out_path = os.path.join(output_dir, new_name)
-        cv.imwrite(out_path, resized)
+        cv.imwrite(out_path, image)
 
 
-def prepare_images(input_dir, output_dir, ext='.png', size=1024):
+def prepare_images(input_dir, output_dir, ext='png', size=1024):
     images = load_images(input_dir)
-    write_images(images, output_dir, ext, size)
+    images = resize_images(images, size)
+    write_images(images, output_dir, ext)
+
+
+def show_images(images: Images):
+    for name, img in images.items():
+        cv.imshow(name, img)
+        cv.waitKey(0)
 
 
 def contour_to_shape(contour):
