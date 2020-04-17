@@ -7,6 +7,7 @@ import cv2 as cv
 import numpy as np
 
 import utils
+import vesicle
 
 Images = Dict[str, np.ndarray]
 
@@ -14,6 +15,7 @@ app = Flask(__name__)
 
 UPLOAD_FOLDER = './uploads'
 ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png', 'tif', 'tiff'}
+MODEL_PATH = 'models/final.h5'
 
 
 def allowed_file(filename):
@@ -44,7 +46,9 @@ def upload():
     images = get_images(request)
     images = utils.resize_images(images, size=1024)
     path = os.path.join(UPLOAD_FOLDER, session_id)
+    out_path = os.path.join(path, 'result')
     utils.write_images(images, path)
+    vesicle.detect_from_dir(path, out_path, MODEL_PATH)
     return redirect(url_for('result'))
 
 

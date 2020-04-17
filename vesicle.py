@@ -3,19 +3,27 @@
 import os
 import shutil
 import result
+import utils
 
 DEFAULT_FILE_NAME = 'via_region_data.json'
 DETECTOR_FILE_NAME = 'via_region_data_detect.json'
 DEFAULT_MODEL_PATH = 'models/final.h5'
 
 
-def detect(input_dir, output_dir, weights_path):
+def load_model():
+    pass
+
+
+def detect(images: utils.Images, output_dir):
+    pass
+
+
+def detect_from_dir(input_dir, output_dir, weights_path):
     # Mask RCNN
     import tensorflow as tf
     import mrcnn.model as modellib
 
     import detector
-    import utils
 
     # Подготовка изображений
     prepared_images_dir = output_dir
@@ -39,6 +47,7 @@ def detect(input_dir, output_dir, weights_path):
     # Экспорт разметки
     results = result.ResultWrapper.from_result(results_dict)
     results.save_annotation(os.path.join(prepared_images_dir, DETECTOR_FILE_NAME))
+    results.save_table(prepared_images_dir)
     print("""
     {} saved in
     {}/
@@ -78,7 +87,7 @@ if __name__ == '__main__':
 
     if args.command == 'detect':
         if args.input_dir and args.output_dir:
-            detect(args.input_dir, args.output_dir, args.weights)
+            detect_from_dir(args.input_dir, args.output_dir, args.weights)
         else:
             print('Arguments input_dir and output_dir are required for detection')
 
