@@ -23,18 +23,7 @@ def load_model(weights_path) -> modellib.MaskRCNN:
     return model
 
 
-def detect(images: utils.Images, output_dir):
-    pass
-
-
-def detect_from_dir(input_dir, output_dir, model: modellib.MaskRCNN):
-
-    # Подготовка изображений
-    prepared_images_dir = output_dir
-    os.makedirs(prepared_images_dir, exist_ok=True)
-    utils.prepare_images(input_dir, prepared_images_dir)
-    images = utils.load_images(prepared_images_dir)
-
+def detect(images: utils.Images, output_dir, model: modellib.MaskRCNN):
     # Детекция
     results_dict = {}
     for i, name in enumerate(images):
@@ -43,14 +32,24 @@ def detect_from_dir(input_dir, output_dir, model: modellib.MaskRCNN):
         print('{}/{}\t{}'.format(i + 1, len(images), name))
 
     # Экспорт разметки
+    os.makedirs(output_dir, exist_ok=True)
     results = result.ResultWrapper.from_result(results_dict)
-    results.save_annotation(os.path.join(prepared_images_dir, DETECTOR_FILE_NAME))
-    results.save_table(prepared_images_dir)
+    results.save_annotation(os.path.join(output_dir, DETECTOR_FILE_NAME))
+    results.save_table(output_dir)
     print("""
-    {} saved in
-    {}/
-    """.format(DETECTOR_FILE_NAME,
-               os.path.abspath(prepared_images_dir)))
+        {} saved in
+        {}/
+        """.format(DETECTOR_FILE_NAME,
+                   os.path.abspath(output_dir)))
+
+
+def detect_from_dir(input_dir, output_dir, model: modellib.MaskRCNN):
+    # Подготовка изображений
+    prepared_images_dir = output_dir
+    os.makedirs(prepared_images_dir, exist_ok=True)
+    utils.prepare_images(input_dir, prepared_images_dir)
+    images = utils.load_images(prepared_images_dir)
+    detect(images, output_dir, model)
 
 
 def export_results(input_dir, out_dir):

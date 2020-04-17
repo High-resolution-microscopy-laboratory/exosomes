@@ -32,7 +32,7 @@ def get_images(cur_request) -> Images:
             if file and allowed_file(file.filename):
                 filename = secure_filename(file.filename)
                 img_array = np.asarray(bytearray(file.read()), dtype=np.uint8)
-                image = cv.imdecode(img_array, 0)
+                image = cv.imdecode(img_array, 1)
                 images[filename] = image
     return images
 
@@ -51,7 +51,7 @@ def upload():
     out_path = os.path.join(path, 'result')
     utils.write_images(images, path)
     model = vesicle.load_model(MODEL_PATH)
-    vesicle.detect_from_dir(path, out_path, model)
+    vesicle.detect(images, out_path, model)
     return redirect(url_for('result'))
 
 
