@@ -4,38 +4,36 @@ import os
 import shutil
 import result
 import utils
+import tensorflow as tf
+import mrcnn.model as modellib
+import detector
 
 DEFAULT_FILE_NAME = 'via_region_data.json'
 DETECTOR_FILE_NAME = 'via_region_data_detect.json'
 DEFAULT_MODEL_PATH = 'models/final.h5'
 
 
-def load_model():
-    pass
+def load_model(weights_path) -> modellib.MaskRCNN:
+    # Загрузка модели
+    config = detector.VesicleInferenceConfig()
+    with tf.device('/cpu:0'):
+        model = modellib.MaskRCNN(mode="inference", model_dir='model', config=config)
+    model.load_weights(weights_path, by_name=True)
+
+    return model
 
 
 def detect(images: utils.Images, output_dir):
     pass
 
 
-def detect_from_dir(input_dir, output_dir, weights_path):
-    # Mask RCNN
-    import tensorflow as tf
-    import mrcnn.model as modellib
-
-    import detector
+def detect_from_dir(input_dir, output_dir, model: modellib.MaskRCNN):
 
     # Подготовка изображений
     prepared_images_dir = output_dir
     os.makedirs(prepared_images_dir, exist_ok=True)
     utils.prepare_images(input_dir, prepared_images_dir)
     images = utils.load_images(prepared_images_dir)
-
-    # Загрузка модели
-    config = detector.VesicleInferenceConfig()
-    with tf.device('/cpu:0'):
-        model = modellib.MaskRCNN(mode="inference", model_dir='model', config=config)
-    model.load_weights(weights_path, by_name=True)
 
     # Детекция
     results_dict = {}
@@ -87,6 +85,7 @@ if __name__ == '__main__':
 
     if args.command == 'detect':
         if args.input_dir and args.output_dir:
+            model = load_model(args.weights)
             detect_from_dir(args.input_dir, args.output_dir, args.weights)
         else:
             print('Arguments input_dir and output_dir are required for detection')

@@ -18,6 +18,8 @@ ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png', 'tif', 'tiff'}
 MODEL_PATH = 'models/final.h5'
 
 
+# model = vesicle.load_model(MODEL_PATH)
+
 def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -48,7 +50,8 @@ def upload():
     path = os.path.join(UPLOAD_FOLDER, session_id)
     out_path = os.path.join(path, 'result')
     utils.write_images(images, path)
-    vesicle.detect_from_dir(path, out_path, MODEL_PATH)
+    model = vesicle.load_model(MODEL_PATH)
+    vesicle.detect_from_dir(path, out_path, model)
     return redirect(url_for('result'))
 
 
