@@ -1,4 +1,4 @@
-from flask import Flask, escape, request, render_template, redirect, url_for
+from flask import Flask, escape, request, render_template, redirect, url_for, send_from_directory
 from werkzeug.utils import secure_filename
 import os
 import uuid
@@ -52,12 +52,26 @@ def upload():
     out_path = os.path.join(path, 'result')
     utils.write_images(images, path)
     vesicle.detect(images, out_path, model)
-    return redirect(url_for('result'))
+    return redirect(url_for('result', result_id=session_id))
 
 
-@app.route('/result')
-def result():
-    return render_template('result.html')
+def is_img_path(path) -> bool:
+    if '.' in path:
+        return path.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+    return False
+
+
+@app.route('/uploads/<result_id>/<file>')
+def get_file(result_id, file):
+    directory = os.path.join(UPLOAD_FOLDER, result_id)
+    return send_from_directory(directory, file)
+
+
+@app.route('/result/<result_id>')
+def result(result_id):
+    directory = os.path.join(UPLOAD_FOLDER, result_id)
+    files = [p for p in os.listdir(directory) if is_img_path(p)]
+    return render_template('result.html', result_id=result_id, files=files)
 
 
 if __name__ == '__main__':

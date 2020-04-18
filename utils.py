@@ -9,7 +9,7 @@ from typing import List, Dict
 Images = Dict[str, np.ndarray]
 
 
-def load_images(input_dir, extensions=('png', 'jpg', 'tif')):
+def load_images(input_dir, extensions=('png', 'jpg', 'tif')) -> Images:
     images = {}
     files = os.listdir(input_dir)
     for file in files:
