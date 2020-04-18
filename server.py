@@ -1,6 +1,7 @@
 from flask import Flask, escape, request, render_template, redirect, url_for, send_from_directory
 from werkzeug.utils import secure_filename
 import os
+from shutil import make_archive, move
 import uuid
 from typing import Dict, List
 import cv2 as cv
@@ -52,6 +53,8 @@ def upload():
     out_path = os.path.join(path, 'result')
     utils.write_images(images, path)
     vesicle.detect(images, out_path, model)
+    make_archive('result', 'zip', out_path)
+    move('result.zip', path)
     return redirect(url_for('result', result_id=session_id))
 
 
@@ -59,6 +62,10 @@ def is_img_path(path) -> bool:
     if '.' in path:
         return path.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
     return False
+
+
+def get_result_dir(result_id: str) -> str:
+    return os.path.join(UPLOAD_FOLDER, result_id)
 
 
 @app.route('/uploads/<result_id>/<file>')
@@ -72,6 +79,11 @@ def result(result_id):
     directory = os.path.join(UPLOAD_FOLDER, result_id)
     files = [p for p in os.listdir(directory) if is_img_path(p)]
     return render_template('result.html', result_id=result_id, files=files)
+
+
+@app.route('/download/<result_id>')
+def download(result_id: str):
+    return send_from_directory(get_result_dir(result_id), 'result.zip')
 
 
 if __name__ == '__main__':

@@ -1,6 +1,8 @@
 {% extends "base.html" %}
 {% block body %}
     <h1 class="text-center">Result</h1>
+    <a href="{{ url_for('download', result_id=result_id) }}" class="btn btn-primary">Download</a>
+    <p></p>
     {% for file in files %}
         <img src="{{ url_for('get_file', result_id=result_id, file=file) }}" alt="{{ file }}"/>
     {% endfor %}
