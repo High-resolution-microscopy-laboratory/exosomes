@@ -85,7 +85,7 @@ if __name__ == '__main__':
     if args.command == 'detect':
         if args.input_dir and args.output_dir:
             model = load_model(args.weights)
-            detect_from_dir(args.input_dir, args.output_dir, args.weights)
+            detect_from_dir(args.input_dir, args.output_dir, model)
         else:
             print('Arguments input_dir and output_dir are required for detection')
 

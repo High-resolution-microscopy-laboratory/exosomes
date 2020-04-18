@@ -17,8 +17,9 @@ UPLOAD_FOLDER = './uploads'
 ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png', 'tif', 'tiff'}
 MODEL_PATH = 'models/final.h5'
 
+model = vesicle.load_model(MODEL_PATH)
+model.keras_model._make_predict_function()
 
-# model = vesicle.load_model(MODEL_PATH)
 
 def allowed_file(filename):
     return '.' in filename and \
@@ -50,7 +51,6 @@ def upload():
     path = os.path.join(UPLOAD_FOLDER, session_id)
     out_path = os.path.join(path, 'result')
     utils.write_images(images, path)
-    model = vesicle.load_model(MODEL_PATH)
     vesicle.detect(images, out_path, model)
     return redirect(url_for('result'))
 
