@@ -10,7 +10,7 @@ import detector
 
 DEFAULT_FILE_NAME = 'via_region_data.json'
 DETECTOR_FILE_NAME = 'via_region_data_detect.json'
-DEFAULT_MODEL_PATH = 'models/final.h5'
+DEFAULT_MODEL_PATH = 'models/final2.h5'
 
 
 def load_model(weights_path) -> modellib.MaskRCNN:
