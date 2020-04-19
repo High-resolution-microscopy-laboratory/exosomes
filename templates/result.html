@@ -4,7 +4,7 @@
     <a href="{{ url_for('download', result_id=result_id) }}" class="btn btn-primary">Download</a>
     <p></p>
     {% for file in files %}
-        <img src="{{ url_for('get_file', result_id=result_id, file=file) }}" alt="{{ file }}"/>
+        <img src="{{ url_for('get_visualised_img', result_id=result_id, file=file) }}" alt="{{ file }}"/>
     {% endfor %}
 
 {% endblock %}

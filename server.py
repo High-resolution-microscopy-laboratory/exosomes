@@ -28,6 +28,12 @@ def allowed_file(filename):
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
+def is_img_path(path) -> bool:
+    if '.' in path:
+        return path.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+    return False
+
+
 def get_images(cur_request) -> Images:
     images = {}
     for files in cur_request.files.listvalues():
@@ -38,6 +44,14 @@ def get_images(cur_request) -> Images:
                 image = cv.imdecode(img_array, 1)
                 images[filename] = image
     return images
+
+
+def get_result_dir(result_id: str) -> str:
+    return os.path.join(UPLOAD_FOLDER, result_id)
+
+
+def get_visualised_imgs_dir(result_id: str) -> str:
+    return os.path.join(UPLOAD_FOLDER, result_id, 'visualised')
 
 
 @app.route('/')
@@ -52,36 +66,29 @@ def upload():
     images = utils.resize_images(images, size=1024)
     images = utils.change_ext(images, IMG_EXT)
 
-    path = os.path.join(UPLOAD_FOLDER, session_id)
-    out_path = os.path.join(path, 'result')
+    base_path = os.path.join(UPLOAD_FOLDER, session_id)
+    prepared_img_path = os.path.join(base_path, 'prepared')
+    visualised_img_path = get_visualised_imgs_dir(session_id)
+    result_path = os.path.join(base_path)
 
-    vesicle.detect(images, out_path, model)
-    utils.write_images(images, path, ext=IMG_EXT)
+    utils.write_images(images, prepared_img_path, ext=IMG_EXT)
+    vesicle.detect(images, result_path, model)
+    utils.write_images(images, visualised_img_path, ext=IMG_EXT)
 
-    make_archive('result', 'zip', out_path)
-    move('result.zip', path)
+    make_archive('result', 'zip', base_path)
+    move('result.zip', base_path)
     return redirect(url_for('result', result_id=session_id))
 
 
-def is_img_path(path) -> bool:
-    if '.' in path:
-        return path.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
-    return False
-
-
-def get_result_dir(result_id: str) -> str:
-    return os.path.join(UPLOAD_FOLDER, result_id)
-
-
 @app.route('/uploads/<result_id>/<file>')
-def get_file(result_id, file):
-    directory = os.path.join(UPLOAD_FOLDER, result_id)
+def get_visualised_img(result_id, file):
+    directory = get_visualised_imgs_dir(result_id)
     return send_from_directory(directory, file)
 
 
 @app.route('/result/<result_id>')
 def result(result_id):
-    directory = os.path.join(UPLOAD_FOLDER, result_id)
+    directory = os.path.join(UPLOAD_FOLDER, result_id, 'visualised')
     files = [p for p in os.listdir(directory) if is_img_path(p)]
     return render_template('result.html', result_id=result_id, files=files)
 
