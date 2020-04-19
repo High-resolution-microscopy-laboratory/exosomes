@@ -17,6 +17,7 @@ app = Flask(__name__)
 UPLOAD_FOLDER = './uploads'
 ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png', 'tif', 'tiff'}
 MODEL_PATH = 'models/final.h5'
+IMG_EXT = 'png'
 
 model = vesicle.load_model(MODEL_PATH)
 model.keras_model._make_predict_function()
@@ -49,12 +50,13 @@ def upload():
     session_id = uuid.uuid4().hex
     images = get_images(request)
     images = utils.resize_images(images, size=1024)
+    images = utils.change_ext(images, IMG_EXT)
 
     path = os.path.join(UPLOAD_FOLDER, session_id)
     out_path = os.path.join(path, 'result')
 
     vesicle.detect(images, out_path, model)
-    utils.write_images(images, path)
+    utils.write_images(images, path, ext=IMG_EXT)
 
     make_archive('result', 'zip', out_path)
     move('result.zip', path)

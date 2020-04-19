@@ -330,3 +330,7 @@ def extract_masks(mask) -> List:
         m[m == c] = 255
         masks.append(m)
     return masks
+
+
+def change_ext(images: Images, new_ext) -> Images:
+    return {f"{name.rsplit('.', 1)[0]}.{new_ext}": img for name, img in images.items() if '.' in name}
