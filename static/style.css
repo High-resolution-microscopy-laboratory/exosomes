@@ -1,3 +1,10 @@
 body {
     padding-top: 4rem;
 }
+
+img {
+    max-height: 50%;
+    max-width: 50%;
+    height: auto;
+    width: auto;
+}
