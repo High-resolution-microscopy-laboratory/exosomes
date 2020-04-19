@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 import utils
 import os
+from typing import Dict, List
 
 
 class ResultWrapper:
@@ -38,6 +39,9 @@ class ResultWrapper:
     def save_table(self, out_dir, file='results.csv'):
         path = os.path.join(out_dir, file)
         self.get_df().to_csv(path)
+
+    def visualize(self, images: utils.Images):
+        visualize_all_params(images, self.params_dict)
 
 
 def extract_contour_params(i, cnt):
@@ -88,7 +92,7 @@ def get_params_from_result(result):
     return params_list
 
 
-def get_params_from_results(results_dict):
+def get_params_from_results(results_dict) -> Dict:
     params_dict = {}
     for name, result in results_dict.items():
         params_dict[name] = get_params_from_result(result)

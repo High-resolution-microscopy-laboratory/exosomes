@@ -49,10 +49,13 @@ def upload():
     session_id = uuid.uuid4().hex
     images = get_images(request)
     images = utils.resize_images(images, size=1024)
+
     path = os.path.join(UPLOAD_FOLDER, session_id)
     out_path = os.path.join(path, 'result')
-    utils.write_images(images, path)
+
     vesicle.detect(images, out_path, model)
+    utils.write_images(images, path)
+
     make_archive('result', 'zip', out_path)
     move('result.zip', path)
     return redirect(url_for('result', result_id=session_id))

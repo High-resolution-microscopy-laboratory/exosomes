@@ -2,7 +2,7 @@
 
 import os
 import shutil
-import result
+from result import ResultWrapper, get_params_and_visualize, visualize_all_params
 import utils
 import tensorflow as tf
 import mrcnn.model as modellib
@@ -33,7 +33,8 @@ def detect(images: utils.Images, output_dir, model: modellib.MaskRCNN):
 
     # Экспорт разметки
     os.makedirs(output_dir, exist_ok=True)
-    results = result.ResultWrapper.from_result(results_dict)
+    results = ResultWrapper.from_result(results_dict)
+    results.visualize(images)
     results.save_annotation(os.path.join(output_dir, DETECTOR_FILE_NAME))
     results.save_table(output_dir)
     print("""
@@ -62,7 +63,7 @@ def export_results(input_dir, out_dir):
     else:
         shutil.move(input_path, output_path)
 
-    results = result.ResultWrapper.from_json(output_path)
+    results = ResultWrapper.from_json(output_path)
     results.save_table(out_dir)
 
 
