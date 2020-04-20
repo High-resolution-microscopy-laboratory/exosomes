@@ -98,5 +98,10 @@ def download(result_id: str):
     return send_from_directory(get_result_dir(result_id), 'result.zip')
 
 
+@app.route('/help')
+def help():
+    return render_template('help.html')
+
+
 if __name__ == '__main__':
     app.run()
