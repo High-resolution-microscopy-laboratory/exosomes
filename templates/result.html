@@ -1,10 +1,10 @@
 {% extends "base.html" %}
-{% block body %}
-    <h1 class="text-center">Result</h1>
+{% block nav %}
     <a href="{{ url_for('download', result_id=result_id) }}" class="btn btn-primary">Download</a>
-    <p></p>
+{% endblock %}
+{% block body %}
+    <div id="img-block"></div>
     {% for file in files %}
         <img src="{{ url_for('get_visualised_img', result_id=result_id, file=file) }}" alt="{{ file }}"/>
     {% endfor %}
-
 {% endblock %}
