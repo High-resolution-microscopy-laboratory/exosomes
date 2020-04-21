@@ -3,7 +3,7 @@ from werkzeug.utils import secure_filename
 import os
 from shutil import make_archive, move
 import uuid
-from typing import Dict, List
+from typing import Dict, List, Tuple
 import cv2 as cv
 import numpy as np
 
@@ -18,6 +18,7 @@ UPLOAD_FOLDER = './uploads'
 ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png', 'tif', 'tiff'}
 MODEL_PATH = 'models/final.h5'
 IMG_EXT = 'png'
+MAX_UPLOADS = 5
 
 model = vesicle.load_model(MODEL_PATH)
 model.keras_model._make_predict_function()
@@ -34,11 +35,26 @@ def is_img_path(path) -> bool:
     return False
 
 
+def exceed_num_uploads(cur_request) -> bool:
+    n = 0
+    for files in cur_request.files.listvalues():
+        n += len(files)
+    return n > MAX_UPLOADS
+
+
+def invalid_extension(cur_request) -> bool:
+    for files in cur_request.files.listvalues():
+        for file in files:
+            if file and not allowed_file(file.filename):
+                return True
+    return False
+
+
 def get_images(cur_request) -> Images:
     images = {}
     for files in cur_request.files.listvalues():
         for file in files:
-            if file and allowed_file(file.filename):
+            if file:
                 filename = secure_filename(file.filename)
                 img_array = np.asarray(bytearray(file.read()), dtype=np.uint8)
                 image = cv.imdecode(img_array, 1)
@@ -56,11 +72,19 @@ def get_visualised_imgs_dir(result_id: str) -> str:
 
 @app.route('/')
 def main():
-    return render_template('index.html')
+    return render_template('index.html', max_uploads=MAX_UPLOADS)
 
 
 @app.route('/upload', methods=['POST'])
 def upload():
+    if exceed_num_uploads(request):
+        return render_template('error.html', title='File limit exceeded',
+                               description=f'You can upload not more then {MAX_UPLOADS} images at a time')
+
+    if invalid_extension(request):
+        return render_template('error.html', title='Invalid file format',
+                               description='Supported image formats: png, jpg, jpeg, tif, tiff')
+
     session_id = uuid.uuid4().hex
     images = get_images(request)
     images = utils.resize_images(images, size=1024)
