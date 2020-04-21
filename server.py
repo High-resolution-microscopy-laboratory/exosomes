@@ -1,4 +1,4 @@
-from flask import Flask, escape, request, render_template, redirect, url_for, send_from_directory
+from flask import Flask, escape, request, render_template, redirect, url_for, send_from_directory, abort
 from werkzeug.utils import secure_filename
 import os
 from shutil import make_archive, move
@@ -89,6 +89,8 @@ def get_visualised_img(result_id, file):
 @app.route('/result/<result_id>')
 def result(result_id):
     directory = os.path.join(UPLOAD_FOLDER, result_id, 'visualised')
+    if not os.path.exists(directory):
+        abort(404)
     files = [p for p in os.listdir(directory) if is_img_path(p)]
     return render_template('result.html', result_id=result_id, files=files)
 
@@ -101,6 +103,11 @@ def download(result_id: str):
 @app.route('/help')
 def help():
     return render_template('help.html')
+
+
+@app.errorhandler(404)
+def page_not_found(e):
+    return render_template('error.html', title='Page not found'), 404
 
 
 if __name__ == '__main__':
