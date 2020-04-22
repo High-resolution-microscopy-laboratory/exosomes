@@ -6,12 +6,48 @@
         <p></p>
         <p>Upload up to {{ max_uploads }} images for detection<br> Supported formats: png, jpg, jpeg, tif, tiff</p>
 
-        <form action="upload" method="post" enctype="multipart/form-data" class="form-inline, text-center" id="upload-form">
+        <form action="upload" method="post" enctype="multipart/form-data" class="form-inline, text-center"
+              id="upload-form">
             <div class="form-group">
                 <input type="file" accept="image/*" name="files" id="files" class="form-control-file, text-center"
                        multiple/>
                 <button type="submit" value="Upload Image" name="submit" class="btn btn-primary">Submit</button>
             </div>
         </form>
+
+        <div class="text-center" id="spinner" style="display:none;">
+            <div class="spinner-border" role="status">
+                <span class="sr-only">Loading...</span>
+            </div>
+        </div>
     </main>
+    <script>
+        (function () {
+
+            let spinner = document.getElementById('spinner')
+
+            document.addEventListener('submit', e => {
+
+                spinner.style.display = 'block'
+
+                const form = e.target;
+                form.style.display = 'none'
+
+                fetch(form.action, {
+                    method: form.method,
+                    body: new FormData(form)
+                })
+                    .then(res => {
+                        window.location.replace(res.url)
+                    })
+                    .catch(err => {
+                        form.style.display = 'block'
+                        spinner.style.display = 'none'
+                    });
+
+                e.preventDefault();
+
+            });
+        })();
+    </script>
 {% endblock %}

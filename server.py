@@ -1,11 +1,12 @@
-from flask import Flask, escape, request, render_template, redirect, url_for, send_from_directory, abort
-from werkzeug.utils import secure_filename
 import os
-from shutil import make_archive, move
 import uuid
-from typing import Dict, List, Tuple
+from shutil import make_archive, move
+from typing import Dict
+
 import cv2 as cv
 import numpy as np
+from flask import Flask, request, render_template, redirect, url_for, send_from_directory, abort
+from werkzeug.utils import secure_filename
 
 import utils
 import vesicle
@@ -18,7 +19,8 @@ UPLOAD_FOLDER = './uploads'
 ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png', 'tif', 'tiff'}
 MODEL_PATH = 'models/final.h5'
 IMG_EXT = 'png'
-MAX_UPLOADS = 5
+MAX_UPLOADS = 10
+ANNOTATION_FILE_NAME = 'via_region_data_detect.json'
 
 model = vesicle.load_model(MODEL_PATH)
 model.keras_model._make_predict_function()
@@ -35,11 +37,13 @@ def is_img_path(path) -> bool:
     return False
 
 
-def exceed_num_uploads(cur_request) -> bool:
+def get_num_uploads(cur_request) -> int:
     n = 0
     for files in cur_request.files.listvalues():
-        n += len(files)
-    return n > MAX_UPLOADS
+        for file in files:
+            if file:
+                n += 1
+    return n
 
 
 def invalid_extension(cur_request) -> bool:
@@ -75,15 +79,18 @@ def main():
     return render_template('index.html', max_uploads=MAX_UPLOADS)
 
 
-@app.route('/upload', methods=['POST'])
+@app.route('/upload', methods=['GET', 'POST'])
 def upload():
-    if exceed_num_uploads(request):
-        return render_template('error.html', title='File limit exceeded',
-                               description=f'You can upload not more then {MAX_UPLOADS} images at a time')
+    num_uploads = get_num_uploads(request)
+    print(num_uploads)
+    if num_uploads == 0:
+        return redirect(url_for('error', status='empty'))
+
+    if num_uploads > MAX_UPLOADS:
+        return redirect(url_for('error', status='limit_exceed'))
 
     if invalid_extension(request):
-        return render_template('error.html', title='Invalid file format',
-                               description='Supported image formats: png, jpg, jpeg, tif, tiff')
+        return redirect(url_for('error', status='invalid_type'))
 
     session_id = uuid.uuid4().hex
     images = get_images(request)
@@ -115,7 +122,7 @@ def result(result_id):
     directory = os.path.join(UPLOAD_FOLDER, result_id, 'visualised')
     if not os.path.exists(directory):
         abort(404)
-    files = [p for p in os.listdir(directory) if is_img_path(p)]
+    files = [p for p in sorted(os.listdir(directory)) if is_img_path(p)]
     return render_template('result.html', result_id=result_id, files=files)
 
 
@@ -124,9 +131,17 @@ def download(result_id: str):
     return send_from_directory(get_result_dir(result_id), 'result.zip')
 
 
-@app.route('/help')
-def help():
-    return render_template('help.html')
+@app.route('/error/<status>')
+def error(status: str):
+    if status == 'empty':
+        return render_template('error.html', title='Empty upload',
+                               description=f'')
+    if status == 'limit_exceed':
+        return render_template('error.html', title='File limit exceeded',
+                               description=f'You can upload not more then {MAX_UPLOADS} images at a time')
+    if status == 'invalid_type':
+        return render_template('error.html', title='Invalid file format',
+                               description='Supported image formats: png, jpg, jpeg, tif, tiff')
 
 
 @app.errorhandler(404)
