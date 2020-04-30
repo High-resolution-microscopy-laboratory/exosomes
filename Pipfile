@@ -8,13 +8,14 @@ verify_ssl = true
 [packages]
 albumentations = "==0.1.2"
 numpy = "*"
-opencv-python = "==3.4.*"
+opencv-python = "==3.4.9.33"
 pandas = "*"
 mask-rcnn = {editable = true,git = "https://github.com/matterport/Mask_RCNN.git"}
-tensorflow = "==1.15"
+tensorflow = "==1.15.2"
 keras = "==2.1.0"
 flask = "*"
 werkzeug = "*"
+gunicorn ="*"
 
 [requires]
 python_version = "3.7"
