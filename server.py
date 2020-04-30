@@ -82,7 +82,6 @@ def main():
 @app.route('/upload', methods=['GET', 'POST'])
 def upload():
     num_uploads = get_num_uploads(request)
-    print(num_uploads)
     if num_uploads == 0:
         return redirect(url_for('error', status='empty'))
 
