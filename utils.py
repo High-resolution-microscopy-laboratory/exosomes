@@ -334,3 +334,12 @@ def extract_masks(mask) -> List:
 
 def change_ext(images: Images, new_ext) -> Images:
     return {f"{name.rsplit('.', 1)[0]}.{new_ext}": img for name, img in images.items() if '.' in name}
+
+
+def poly_from_str(s):
+    xs, ys = [], []
+    for str_point in s.split(';'):
+        x, y = str_point.split(',')
+        xs.append(float(x))
+        ys.append(float(y))
+    return np.array(xs), np.array(ys)

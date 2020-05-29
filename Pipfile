@@ -16,6 +16,8 @@ keras = "==2.1.0"
 flask = "*"
 werkzeug = "*"
 gunicorn ="*"
+datumaro = {git = "https://github.com/opencv/cvat",subdirectory = "datumaro"}
+xmltodict = "*"
 
 [requires]
 python_version = "3.7"
