@@ -1,0 +1,15 @@
+[Unit]
+Description = Exosomes detection service
+After = network.target
+
+[Service]
+User = exoadmin
+Group = exoadmin
+WorkingDirectory = /home/exoadmin/exosomes
+ExecStart = /usr/bin/env gunicorn server:app
+ExecReload = /bin/kill -s HUP $MAINPID
+ExecStop = /bin/kill -s TERM $MAINPID
+PrivateTmp = true
+
+[Install]
+WantedBy = multi-user.target
