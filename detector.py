@@ -19,6 +19,10 @@ import json
 import datetime
 import numpy as np
 import skimage.draw
+import skimage.io
+import xmltodict
+from utils import poly_from_str
+from collections import OrderedDict
 
 # Root directory of the project
 ROOT_DIR = os.path.abspath("./")
@@ -93,51 +97,30 @@ class VesicleDataset(utils.Dataset):
         # Train or validation dataset?
         assert subset in ["train", "val"]
         dataset_dir = os.path.join(dataset_dir, subset)
+        annotation_path = os.path.join(dataset_dir, 'annotation.xml')
 
         # Load annotations
-        # VGG Image Annotator (up to version 1.6) saves each image in the form:
-        # { 'filename': '28503151_5b5b7ec140_b.jpg',
-        #   'regions': {
-        #       '0': {
-        #           'region_attributes': {},
-        #           'shape_attributes': {
-        #               'all_points_x': [...],
-        #               'all_points_y': [...],
-        #               'name': 'polygon'}},
-        #       ... more regions ...
-        #   },
-        #   'size': 100202
-        # }
-        # We mostly care about the x and y coordinates of each region
-        # Note: In VIA 2.0, regions was changed from a dict to a list.
-        annotations = json.load(open(os.path.join(dataset_dir, "via_region_data.json")))
-        annotations = list(annotations.values())  # don't need the dict keys
-
-        # The VIA tool saves images in the JSON even if they don't have any
-        # annotations. Skip unannotated images.
-        annotations = [a for a in annotations if a['regions']]
+        with open(annotation_path) as f:
+            doc = xmltodict.parse(f.read())
+            annotations = doc['annotations']
 
         # Add images
-        for a in annotations:
-            # Get the x, y coordinaets of points of the polygons that make up
-            # the outline of each object instance. These are stores in the
-            # shape_attributes (see json format above)
-            # The if condition is needed to support VIA versions 1.x and 2.x.
-            if type(a['regions']) is dict:
-                polygons = [r['shape_attributes'] for r in a['regions'].values()]
-            else:
-                polygons = [r['shape_attributes'] for r in a['regions']]
+        for image in annotations['image']:
+            name = image['@name']
 
-                # load_mask() needs the image size to convert polygons to masks.
-            # Unfortunately, VIA doesn't include it in JSON, so we must read
-            # the image. This is only managable since the dataset is tiny.
-            image_path = os.path.join(dataset_dir, a['filename'])
+            if 'polygon' not in image:
+                continue
+
+            image_path = os.path.join(dataset_dir, name)
             image = skimage.io.imread(image_path)
             height, width = image.shape[:2]
 
+            polygons = [poly_from_str(str_p) for str_p in image['polygon']
+                        if isinstance(str_p, OrderedDict)]
+
             self.add_image(
                 "vesicle",
-                image_id=a['filename'],  # use file name as a unique image id
+                image_id=name,  # use file name as a unique image id
                 path=image_path,
                 width=width, height=height,
                 polygons=polygons)
@@ -160,8 +143,7 @@ class VesicleDataset(utils.Dataset):
         mask = np.zeros([info["height"], info["width"], len(info["polygons"])],
                         dtype=np.uint8)
         for i, p in enumerate(info["polygons"]):
-            # Get indexes of pixels inside the polygon and set them to 1
-            rr, cc = skimage.draw.polygon(p['all_points_y'], p['all_points_x'])
+            rr, cc = skimage.draw.polygon(p[1], p[0])
             mask[rr, cc, i] = 1
 
         # Return mask, and array of class IDs of each instance. Since we have
