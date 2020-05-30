@@ -23,6 +23,8 @@ import skimage.io
 import xmltodict
 from utils import poly_from_str
 from collections import OrderedDict
+from imgaug import augmenters as iaa
+
 
 # Root directory of the project
 ROOT_DIR = os.path.abspath("./")
@@ -172,6 +174,14 @@ def train(model, epochs=EPOCHS):
     dataset_val.load_vesicle(args.dataset, "val")
     dataset_val.prepare()
 
+    augmentation = iaa.SomeOf((0, 2), [
+        iaa.Fliplr(0.5),
+        iaa.Flipud(0.5),
+        iaa.OneOf([iaa.Affine(rotate=90),
+                   iaa.Affine(rotate=180),
+                   iaa.Affine(rotate=270)]),
+    ])
+
     # *** This training schedule is an example. Update to your needs ***
     # Since we're using a very small dataset, and starting from
     # COCO trained weights, we don't need to train too long. Also,
@@ -180,6 +190,7 @@ def train(model, epochs=EPOCHS):
     model.train(dataset_train, dataset_val,
                 learning_rate=config.LEARNING_RATE,
                 epochs=epochs,
+                augmentation=augmentation,
                 layers='heads')
 
 
