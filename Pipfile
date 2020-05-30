@@ -18,6 +18,7 @@ werkzeug = "*"
 gunicorn ="*"
 datumaro = {git = "https://github.com/opencv/cvat",subdirectory = "datumaro"}
 xmltodict = "*"
+imagecodecs = "*"
 
 [requires]
 python_version = "3.7"
