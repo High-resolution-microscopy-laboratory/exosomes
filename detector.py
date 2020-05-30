@@ -97,7 +97,7 @@ class VesicleDataset(utils.Dataset):
         # Train or validation dataset?
         assert subset in ["train", "val"]
         dataset_dir = os.path.join(dataset_dir, subset)
-        annotation_path = os.path.join(dataset_dir, 'annotation.xml')
+        annotation_path = os.path.join(dataset_dir, 'annotations.xml')
 
         # Load annotations
         with open(annotation_path) as f:
@@ -112,10 +112,10 @@ class VesicleDataset(utils.Dataset):
                 continue
 
             image_path = os.path.join(dataset_dir, name)
-            image = skimage.io.imread(image_path)
-            height, width = image.shape[:2]
+            img = skimage.io.imread(image_path)
+            height, width = img.shape[:2]
 
-            polygons = [poly_from_str(str_p) for str_p in image['polygon']
+            polygons = [poly_from_str(str_p['@points']) for str_p in image['polygon']
                         if isinstance(str_p, OrderedDict)]
 
             self.add_image(
