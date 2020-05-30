@@ -25,7 +25,6 @@ from utils import poly_from_str
 from collections import OrderedDict
 from imgaug import augmenters as iaa
 
-
 # Root directory of the project
 ROOT_DIR = os.path.abspath("./")
 
@@ -75,6 +74,8 @@ class VesicleConfig(Config):
     # IMAGE_MIN_DIM = 512
     # IMAGE_MAX_DIM = 512
     MEAN_PIXEL = np.array([148.4, 148.4, 148.4])
+
+    LEARNING_RATE = 0.001
 
 
 class VesicleInferenceConfig(VesicleConfig):
@@ -174,12 +175,11 @@ def train(model, epochs=EPOCHS):
     dataset_val.load_vesicle(args.dataset, "val")
     dataset_val.prepare()
 
-    augmentation = iaa.SomeOf((0, 2), [
+    augmentation = iaa.SomeOf((0, None), [
         iaa.Fliplr(0.5),
         iaa.Flipud(0.5),
-        iaa.OneOf([iaa.Affine(rotate=90),
-                   iaa.Affine(rotate=180),
-                   iaa.Affine(rotate=270)]),
+        iaa.Affine(rotate=(-180, 180)),
+        iaa.Affine(scale=(0.9, 1.1)),
     ])
 
     # *** This training schedule is an example. Update to your needs ***
