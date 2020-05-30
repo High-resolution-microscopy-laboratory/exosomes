@@ -61,7 +61,7 @@ class VesicleConfig(Config):
     NUM_CLASSES = 1 + 1  # Background + vesicle
 
     # Number of training steps per epoch
-    STEPS_PER_EPOCH = 384
+    STEPS_PER_EPOCH = 138
 
     # Skip detections with < 60% confidence
     DETECTION_MIN_CONFIDENCE = 0.6
@@ -72,6 +72,7 @@ class VesicleConfig(Config):
     # Resize image
     # IMAGE_MIN_DIM = 512
     # IMAGE_MAX_DIM = 512
+    MEAN_PIXEL = np.array([148.4, 148.4, 148.4])
 
 
 class VesicleInferenceConfig(VesicleConfig):
