@@ -6,10 +6,58 @@ import numpy as np
 import skimage.draw
 from pathlib import Path
 from utils import poly_from_str
-import collections
+from collections import OrderedDict
+from sklearn.model_selection import train_test_split
+import shutil
 
 DATA_DIR = 'data/raw'
 OUT_DIR = 'data/prepared_png'
+
+
+def create_empty_ann(source_ann):
+    empty_ann = OrderedDict()
+    empty_ann['annotations'] = OrderedDict()
+    root = empty_ann['annotations']
+    root['version'] = source_ann['version']
+    root['meta'] = source_ann['meta']
+    root['image'] = []
+    return empty_ann
+
+
+def split_data(img_dir, xml_path, output_dir):
+    files = [f for f in os.listdir(img_dir) if os.path.isfile(os.path.join(img_dir, f)) and '.tif' in f]
+    train_files, test_files = train_test_split(files, test_size=0.15)
+    with open(xml_path) as f:
+        doc = xmltodict.parse(f.read())
+        annotations = doc['annotations']
+
+    # Prepare empty annotation
+    train_ann = create_empty_ann(annotations)
+    test_ann = create_empty_ann(annotations)
+
+    train_img_dir = os.path.join(output_dir, 'train')
+    test_img_dir = os.path.join(output_dir, 'val')
+
+    for image in annotations['image']:
+        name = image['@name']
+        img_path = os.path.join(img_dir, name)
+        if name in train_files:
+            train_ann['annotations']['image'].append(image)
+            shutil.copy(img_path, train_img_dir)
+        if name in test_files:
+            test_ann['annotations']['image'].append(image)
+            shutil.copy(img_path, test_img_dir)
+
+    train_ann_path = os.path.join(output_dir, 'train', 'annotations.xml')
+    test_ann_path = os.path.join(output_dir, 'val', 'annotations.xml')
+
+    with open(train_ann_path, 'w') as f:
+        f.write(xmltodict.unparse(train_ann))
+    with open(test_ann_path, 'w') as f:
+        f.write(xmltodict.unparse(test_ann))
+
+    print(len(train_files))
+    print(len(test_files))
 
 
 def cvat_to_mask(xml_path):
@@ -27,7 +75,7 @@ def cvat_to_mask(xml_path):
             w = int(image['@width'])
             masks = np.zeros([h, w, len(polygons)], dtype=np.uint8)
             for i, poly in enumerate(polygons):
-                if not isinstance(poly, collections.OrderedDict):
+                if not isinstance(poly, OrderedDict):
                     continue
                 mask = np.zeros([h, w, 1], dtype=np.uint8)
                 str_points = poly['@points']
@@ -65,4 +113,6 @@ def main():
 
 
 if __name__ == '__main__':
-    cvat_to_mask('data/data_cvat_only_vesicles/annotations/annotations.xml')
+    # cvat_to_mask('data/data_cvat_only_vesicles/annotations/annotations.xml')
+    split_data('data/data_cvat_only_vesicles/all',
+               'data/data_cvat_only_vesicles/all/annotations.xml', 'data/data_cvat_only_vesicles/')
