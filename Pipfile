@@ -19,6 +19,7 @@ gunicorn ="*"
 datumaro = {git = "https://github.com/opencv/cvat",subdirectory = "datumaro"}
 xmltodict = "*"
 imagecodecs = "*"
+scikit-learn = "*"
 
 [requires]
 python_version = "3.7"

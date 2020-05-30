@@ -15,6 +15,13 @@ DATA_DIR = 'data/raw'
 OUT_DIR = 'data/prepared_png'
 
 
+def set_size(ann, size: int):
+    root = ann['annotations']['meta']['task']
+    root['size'] = size
+    root['start_frame'] = 0
+    root['stop_frame'] = size
+
+
 def create_empty_ann(source_ann):
     empty_ann = OrderedDict()
     empty_ann['annotations'] = OrderedDict()
@@ -22,7 +29,14 @@ def create_empty_ann(source_ann):
     root['version'] = source_ann['version']
     root['meta'] = source_ann['meta']
     root['image'] = []
+    set_size(empty_ann, 0)
     return empty_ann
+
+
+def add_img(ann, img):
+    imgs = ann['annotations']['image']
+    img['@id'] = len(imgs)
+    imgs.append(img)
 
 
 def split_data(img_dir, xml_path, output_dir):
@@ -45,11 +59,14 @@ def split_data(img_dir, xml_path, output_dir):
         name = image['@name']
         img_path = os.path.join(img_dir, name)
         if name in train_files:
-            train_ann['annotations']['image'].append(image)
+            add_img(train_ann, image)
             shutil.copy(img_path, train_img_dir)
         if name in test_files:
-            test_ann['annotations']['image'].append(image)
+            add_img(test_ann, image)
             shutil.copy(img_path, test_img_dir)
+
+    set_size(train_ann, len(train_files))
+    set_size(test_ann, len(test_files))
 
     train_ann_path = os.path.join(output_dir, 'train', 'annotations.xml')
     test_ann_path = os.path.join(output_dir, 'val', 'annotations.xml')
