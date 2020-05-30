@@ -9,6 +9,7 @@ from utils import poly_from_str
 from collections import OrderedDict
 from sklearn.model_selection import train_test_split
 import shutil
+from matplotlib import pyplot as plt
 
 DATA_DIR = 'data/raw'
 OUT_DIR = 'data/prepared_png'
@@ -26,7 +27,9 @@ def create_empty_ann(source_ann):
 
 def split_data(img_dir, xml_path, output_dir):
     files = [f for f in os.listdir(img_dir) if os.path.isfile(os.path.join(img_dir, f)) and '.tif' in f]
-    train_files, test_files = train_test_split(files, test_size=0.15)
+    scales = [int(s.lower().rsplit('k', 1)[0].rsplit('_', 1)[1]) for s in files]
+    train_files, test_files, train_scales, test_scales = train_test_split(files, scales, test_size=0.15,
+                                                                          stratify=scales)
     with open(xml_path) as f:
         doc = xmltodict.parse(f.read())
         annotations = doc['annotations']
@@ -56,8 +59,13 @@ def split_data(img_dir, xml_path, output_dir):
     with open(test_ann_path, 'w') as f:
         f.write(xmltodict.unparse(test_ann))
 
-    print(len(train_files))
-    print(len(test_files))
+    print(f'train: {len(train_files)}')
+    print(f'test: {len(test_files)}')
+
+    plt.hist(scales)
+    plt.hist(train_scales)
+    plt.hist(test_scales)
+    plt.show()
 
 
 def cvat_to_mask(xml_path):
