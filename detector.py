@@ -72,13 +72,15 @@ class VesicleConfig(Config):
     # resnet 50 or resnet101
     BACKBONE = "resnet50"
 
-    # Resize image
-    # IMAGE_MIN_DIM = 512
-    # IMAGE_MAX_DIM = 512
     IMAGE_CHANNEL_COUNT = 1
     MEAN_PIXEL = np.array([148.4])
 
     LEARNING_RATE = 0.001
+
+
+class VesicleGrayConfig(VesicleConfig):
+    IMAGE_CHANNEL_COUNT = 1
+    MEAN_PIXEL = np.array([148.4])
 
 
 class VesicleInferenceConfig(VesicleConfig):
