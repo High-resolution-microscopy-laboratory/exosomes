@@ -7,6 +7,8 @@ import utils
 import tensorflow as tf
 import mrcnn.model as modellib
 import detector
+import cv2 as cv
+import numpy as np
 
 DEFAULT_FILE_NAME = 'via_region_data.json'
 DETECTOR_FILE_NAME = 'via_region_data_detect.json'
@@ -51,6 +53,7 @@ def detect_from_dir(input_dir, output_dir, model: modellib.MaskRCNN):
     utils.prepare_images(input_dir, prepared_images_dir)
     images = utils.load_images(prepared_images_dir)
     detect(images, output_dir, model)
+    utils.write_images(images, os.path.join(output_dir, 'vis'))
 
 
 def export_results(input_dir, out_dir):

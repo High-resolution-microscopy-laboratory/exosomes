@@ -24,6 +24,8 @@ import xmltodict
 from utils import poly_from_str
 from collections import OrderedDict
 from imgaug import augmenters as iaa
+import cv2 as cv
+import time
 
 # Root directory of the project
 ROOT_DIR = os.path.abspath("./")
@@ -73,7 +75,8 @@ class VesicleConfig(Config):
     # Resize image
     # IMAGE_MIN_DIM = 512
     # IMAGE_MAX_DIM = 512
-    MEAN_PIXEL = np.array([148.4, 148.4, 148.4])
+    IMAGE_CHANNEL_COUNT = 1
+    MEAN_PIXEL = np.array([148.4])
 
     LEARNING_RATE = 0.001
 
@@ -89,6 +92,8 @@ class VesicleInferenceConfig(VesicleConfig):
 ############################################################
 
 class VesicleDataset(utils.Dataset):
+    def load_image(self, image_id):
+        return cv.imread(self.image_info[image_id]['path'], 0)[..., np.newaxis]
 
     def load_vesicle(self, dataset_dir, subset):
         """Load a subset of the Vesicles dataset.
@@ -191,7 +196,7 @@ def train(model, epochs=EPOCHS):
                 learning_rate=config.LEARNING_RATE,
                 epochs=epochs,
                 augmentation=augmentation,
-                layers='heads')
+                layers='all')
 
 
 ############################################################
@@ -275,6 +280,7 @@ if __name__ == '__main__':
         # Exclude the last layers because they require a matching
         # number of classes
         model.load_weights(weights_path, by_name=True, exclude=[
+            'conv1',
             "mrcnn_class_logits", "mrcnn_bbox_fc",
             "mrcnn_bbox", "mrcnn_mask"])
     else:
