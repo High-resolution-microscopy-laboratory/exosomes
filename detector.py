@@ -15,21 +15,16 @@ Usage: import the module (see Jupyter notebooks for examples), or run from
 
 import os
 import sys
-import json
-import datetime
+from collections import OrderedDict
+
+import keras
 import numpy as np
 import skimage.draw
 import skimage.io
 import xmltodict
-from utils import poly_from_str
-from collections import OrderedDict
 from imgaug import augmenters as iaa
-import cv2 as cv
-import time
 
-from pycocotools.coco import COCO
-from pycocotools.cocoeval import COCOeval
-from pycocotools import mask as maskUtils
+from utils import poly_from_str
 
 # Root directory of the project
 ROOT_DIR = os.path.abspath("./")
@@ -191,15 +186,14 @@ def train(model, epochs=EPOCHS):
         iaa.Affine(scale=(0.9, 1.1)),
     ])
 
-    # *** This training schedule is an example. Update to your needs ***
-    # Since we're using a very small dataset, and starting from
-    # COCO trained weights, we don't need to train too long. Also,
-    # no need to train all layers, just the heads should do it.
-    print("Training network heads")
+    tensor_board_callback = keras.callbacks.TensorBoard(log_dir=model.log_dir,
+                                                        histogram_freq=0, write_graph=True, write_images=True),
+    print("Training network")
     model.train(dataset_train, dataset_val,
                 learning_rate=config.LEARNING_RATE,
                 epochs=epochs,
                 augmentation=augmentation,
+                custom_callbacks=[tensor_board_callback],
                 layers='all')
 
 
