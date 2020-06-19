@@ -77,7 +77,6 @@ class VesicleConfig(Config):
     BACKBONE = "resnet50"
 
     LEARNING_RATE = 0.001
-    IMAGE_RESIZE_MODE = "none"
 
 
 class VesicleGrayConfig(VesicleConfig):
@@ -164,55 +163,6 @@ class VesicleDataset(utils.Dataset):
         # one class ID only, we return an array of 1s
         return mask.astype(np.bool), np.ones([mask.shape[-1]], dtype=np.int32)
 
-    def load_coco(self, dataset_dir, subset, class_ids=None):
-        """Load a subset of the COCO dataset.
-        dataset_dir: The root directory of the COCO dataset.
-        subset: What to load (train, val, minival, valminusminival)
-        year: What dataset year to load (2014, 2017) as a string, not an integer
-        class_ids: If provided, only loads images that have the given classes.
-        class_map: TODO: Not implemented yet. Supports maping classes from
-            different datasets to the same class ID.
-        return_coco: If True, returns the COCO object.
-        auto_download: Automatically download and unzip MS-COCO images and annotations
-        """
-
-        coco = COCO("{}/{}/instances_annotations.json".format(dataset_dir, subset))
-        if subset == "minival" or subset == "valminusminival":
-            subset = "val"
-        image_dir = "{}/{}".format(dataset_dir, subset)
-
-        # Load all classes or a subset?
-        if not class_ids:
-            # All classes
-            class_ids = sorted(coco.getCatIds())
-
-        # All images or a subset?
-        if class_ids:
-            image_ids = []
-            for id in class_ids:
-                image_ids.extend(list(coco.getImgIds(catIds=[id])))
-            # Remove duplicates
-            image_ids = list(set(image_ids))
-        else:
-            # All images
-            image_ids = list(coco.imgs.keys())
-
-        # Add classes
-        for i in class_ids:
-            self.add_class("coco", i, coco.loadCats(i)[0]["name"])
-
-        # Add images
-        for i in image_ids:
-            self.add_image(
-                "coco", image_id=i,
-                path=os.path.join(image_dir, coco.imgs[i]['file_name']),
-                width=coco.imgs[i]["width"],
-                height=coco.imgs[i]["height"],
-                annotations=coco.loadAnns(coco.getAnnIds(
-                    imgIds=[i], catIds=class_ids, iscrowd=None)))
-
-        return coco
-
     def image_reference(self, image_id):
         """Return the path of the image."""
         info = self.image_info[image_id]
@@ -253,83 +203,62 @@ def train(model, epochs=EPOCHS):
                 layers='all')
 
 
-def build_coco_results(dataset, image_ids, rois, class_ids, scores, masks):
-    """Arrange resutls to match COCO specs in http://cocodataset.org/#format
-    """
-    # If no results, return an empty list
-    if rois is None:
-        return []
+# noinspection PyPep8Naming
+def compute_metrics(dataset: VesicleDataset, limit=0):
+    mAPs = []
+    APs_75 = []
+    APs_5 = []
+    recalls_75 = []
+    recalls_5 = []
 
-    results = []
-    for image_id in image_ids:
-        # Loop through detections
-        for i in range(rois.shape[0]):
-            class_id = class_ids[i]
-            score = scores[i]
-            bbox = np.around(rois[i], 1)
-            mask = masks[:, :, i]
-
-            result = {
-                "image_id": image_id,
-                "category_id": dataset.get_source_class_id(class_id, "coco"),
-                "bbox": [bbox[1], bbox[0], bbox[3] - bbox[1], bbox[2] - bbox[0]],
-                "score": score,
-                "segmentation": maskUtils.encode(np.asfortranarray(mask))
-            }
-            results.append(result)
-    return results
-
-
-def evaluate_coco(model, dataset, coco, eval_type="segm", limit=0, image_ids=None):
-    """Runs official COCO evaluation.
-    dataset: A Dataset object with valiadtion data
-    eval_type: "bbox" or "segm" for bounding box or segmentation evaluation
-    limit: if not 0, it's the number of images to use for evaluation
-    """
-    # Pick COCO images from the dataset
-    image_ids = image_ids or dataset.image_ids
-
-    # Limit to a subset
-    if limit:
-        image_ids = image_ids[:limit]
-
-    # Get corresponding COCO image IDs.
-    coco_image_ids = [dataset.image_info[id]["id"] for id in image_ids]
-    print(coco_image_ids)
-    t_prediction = 0
-    t_start = time.time()
-
-    results = []
-    for i, image_id in enumerate(image_ids):
+    end = limit if limit != 0 else len(dataset.image_ids)
+    for image_id in dataset.image_ids[:end]:
         # Load image
-        image = dataset.load_image(image_id)
+        image, image_meta, gt_class_id, gt_bbox, gt_mask = \
+            modellib.load_image_gt(dataset, config,
+                                   image_id, use_mini_mask=False)
+        # Run object detection
+        results = model.detect([image], verbose=0)
 
-        # Run detection
-        t = time.time()
-        r = model.detect([image], verbose=0)[0]
-        t_prediction += (time.time() - t)
+        # Compute metrics
+        r = results[0]
 
-        # Convert results to COCO format
-        # Cast masks to uint8 because COCO tools errors out on bool
-        image_results = build_coco_results(dataset, coco_image_ids[i:i + 1],
-                                           r["rois"], r["class_ids"],
-                                           r["scores"],
-                                           r["masks"].astype(np.uint8))
-        results.extend(image_results)
+        AP_75, precisions, recalls, overlaps = \
+            utils.compute_ap(gt_bbox, gt_class_id, gt_mask,
+                             r['rois'], r['class_ids'], r['scores'], r['masks'], iou_threshold=0.75)
 
-    # Load results. This modifies results with additional attributes.
-    coco_results = coco.loadRes(results)
+        AP_5, precisions, recalls, overlaps = \
+            utils.compute_ap(gt_bbox, gt_class_id, gt_mask,
+                             r['rois'], r['class_ids'], r['scores'], r['masks'], iou_threshold=0.5)
 
-    # Evaluate
-    cocoEval = COCOeval(coco, coco_results, eval_type)
-    cocoEval.params.imgIds = coco_image_ids
-    cocoEval.evaluate()
-    cocoEval.accumulate()
-    cocoEval.summarize()
+        mAP = utils.compute_ap_range(gt_bbox, gt_class_id, gt_mask,
+                                     r['rois'], r['class_ids'], r['scores'], r['masks'], verbose=False)
 
-    print("Prediction time: {}. Average {}/image".format(
-        t_prediction, t_prediction / len(image_ids)))
-    print("Total time: ", time.time() - t_start)
+        recall_75, _ = utils.compute_recall(r['rois'], gt_bbox, iou=0.75)
+        recall_5, _ = utils.compute_recall(r['rois'], gt_bbox, iou=0.5)
+
+        mAPs.append(mAP)
+        APs_75.append(AP_75)
+        APs_5.append(AP_5)
+        recalls_75.append(recall_75)
+        recalls_5.append(recall_5)
+
+    return tuple(np.mean(m) for m in [mAPs, APs_75, APs_5, recalls_75, recalls_5])
+
+
+def f_score(precision, recall):
+    return 2 * precision * recall / (precision + recall)
+
+
+def evaluate(dataset: VesicleDataset, limit=0):
+    mAP, mAP_75, mAP_5, recall_75, recall_5 = compute_metrics(dataset, limit)
+    F1 = f_score(mAP_75, recall_75)
+    print(f'  mAP   @ IoU Rng :\t{mAP:.3} ')
+    print(f'  mAP   @ IoU=75  :\t{mAP_75:.3}')
+    print(f'  mAP   @ IoU=50  :\t{mAP_5:.3}')
+    print(f'Recall  @ IoU=75  :\t{recall_75:.3}')
+    print(f'Recall  @ IoU=50  :\t{recall_5:.3}')
+    print(f'F Score @ IoU=75  :\t{F1:.3} ')
 
 
 ############################################################
@@ -359,6 +288,10 @@ if __name__ == '__main__':
                         type=int,
                         default=EPOCHS,
                         help='Number of epochs')
+    parser.add_argument('--eval-limit', required=False,
+                        type=int,
+                        default=0,
+                        help='Number of evaluation images')
     args = parser.parse_args()
 
     # Validate arguments
@@ -413,7 +346,7 @@ if __name__ == '__main__':
         # Exclude the last layers because they require a matching
         # number of classes
         model.load_weights(weights_path, by_name=True, exclude=[
-            'conv1',
+            # 'conv1',
             "mrcnn_class_logits", "mrcnn_bbox_fc",
             "mrcnn_bbox", "mrcnn_mask"])
     else:
@@ -425,10 +358,11 @@ if __name__ == '__main__':
     elif args.command == "evaluate":
         # Validation dataset
         dataset_val = VesicleDataset()
-        coco = dataset_val.load_coco(args.dataset, 'val')
+        dataset_val.load_vesicle(args.dataset, 'val')
         dataset_val.prepare()
-        print("Running COCO evaluation on images.")
-        evaluate_coco(model, dataset_val, coco, "segm", limit=3)
+        n_img = len(dataset_val.image_ids) if not args.eval_limit else len(dataset_val.image_ids[:args.eval_limit])
+        print(f'Running evaluation on {n_img} images.')
+        evaluate(dataset_val, limit=args.eval_limit)
     else:
         print("'{}' is not recognized. "
               "Use 'train'".format(args.command))
