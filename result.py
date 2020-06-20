@@ -40,7 +40,7 @@ class ResultWrapper:
     def save_table(self, out_dir, file='results.csv',
                    fields=('id', 'score', 'area', 'perimeter', 'roundness', 'ellipse area', 'a', 'b', 'a+b')):
         path = os.path.join(out_dir, file)
-        self.get_df(fields).to_csv(path, index=False)
+        self.get_df(fields).to_csv(path, index=False, float_format='%.3f')
 
     def visualize(self, images: utils.Images):
         visualize_all_params(images, self.params_dict)
