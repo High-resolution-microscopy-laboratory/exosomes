@@ -186,14 +186,11 @@ def train(model, epochs=EPOCHS):
         iaa.Affine(scale=(0.9, 1.1)),
     ])
 
-    tensor_board_callback = keras.callbacks.TensorBoard(log_dir=model.log_dir,
-                                                        histogram_freq=0, write_graph=True, write_images=True),
     print("Training network")
     model.train(dataset_train, dataset_val,
                 learning_rate=config.LEARNING_RATE,
                 epochs=epochs,
                 augmentation=augmentation,
-                custom_callbacks=[tensor_board_callback],
                 layers='all')
 
 
@@ -244,7 +241,7 @@ def f_score(precision, recall):
     return 2 * precision * recall / (precision + recall)
 
 
-def evaluate(dataset: VesicleDataset, limit=0):
+def evaluate(dataset: VesicleDataset, tag='', limit=0, out=None):
     mAP, mAP_75, mAP_5, recall_75, recall_5 = compute_metrics(dataset, limit)
     F1 = f_score(mAP_75, recall_75)
     print(f'  mAP   @ IoU Rng :\t{mAP:.3} ')
@@ -253,6 +250,9 @@ def evaluate(dataset: VesicleDataset, limit=0):
     print(f'Recall  @ IoU=75  :\t{recall_75:.3}')
     print(f'Recall  @ IoU=50  :\t{recall_5:.3}')
     print(f'F Score @ IoU=75  :\t{F1:.3} ')
+    if out:
+        with open(out, 'a') as f:
+            f.write(f'{tag}, {mAP:.3}, {mAP_75:.3}, {mAP_5:.3}, {recall_75:.3}, {recall_5:.3}, {F1:.3}\n')
 
 
 ############################################################
@@ -286,6 +286,9 @@ if __name__ == '__main__':
                         type=int,
                         default=0,
                         help='Number of evaluation images')
+    parser.add_argument('--out', required=False, type=str)
+    parser.add_argument('--tag', required=False, type=str)
+
     args = parser.parse_args()
 
     # Validate arguments
@@ -356,7 +359,7 @@ if __name__ == '__main__':
         dataset_val.prepare()
         n_img = len(dataset_val.image_ids) if not args.eval_limit else len(dataset_val.image_ids[:args.eval_limit])
         print(f'Running evaluation on {n_img} images.')
-        evaluate(dataset_val, limit=args.eval_limit)
+        evaluate(dataset_val, tag=args.tag, limit=args.eval_limit, out=args.out)
     else:
         print("'{}' is not recognized. "
               "Use 'train'".format(args.command))
