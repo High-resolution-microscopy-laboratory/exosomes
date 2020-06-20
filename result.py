@@ -4,6 +4,7 @@ import pandas as pd
 import utils
 import os
 from typing import Dict, List
+import math
 
 
 class ResultWrapper:
@@ -21,7 +22,7 @@ class ResultWrapper:
         params_dict = get_params_from_results(results_dict)
         return ResultWrapper(params_dict)
 
-    def get_df(self, fields=('id', 'a', 'b', 'area')):
+    def get_df(self, fields=('id', 'score', 'a', 'b', 'area')):
         table = []
         for name, params_list in self.params_dict.items():
             for p in params_list:
@@ -36,9 +37,10 @@ class ResultWrapper:
         region_data = utils.contours2json(contours_list_dict)
         utils.save_region_data(file, region_data)
 
-    def save_table(self, out_dir, file='results.csv'):
+    def save_table(self, out_dir, file='results.csv',
+                   fields=('id', 'score', 'area', 'perimeter', 'roundness', 'ellipse area', 'a', 'b', 'a+b')):
         path = os.path.join(out_dir, file)
-        self.get_df().to_csv(path)
+        self.get_df(fields).to_csv(path, index=False)
 
     def visualize(self, images: utils.Images):
         visualize_all_params(images, self.params_dict)
@@ -50,13 +52,22 @@ def extract_contour_params(i, cnt):
     ellipse = cv.fitEllipse(cnt)
     s1 = ellipse[1][0] / 2
     s2 = ellipse[1][1] / 2
+    a = max(s1, s2)
+    b = min(s1, s2)
+    area = cv.contourArea(cnt)
+    perimeter = cv.arcLength(cnt, True)
+    roundness = (4 * math.pi * area) / (perimeter ** 2)
     params = {
         'id': i + 1,
         'cnt': cnt,
         'ellipse': ellipse,
-        'a': max(s1, s2),
-        'b': min(s1, s2),
-        'area': cv.contourArea(cnt),
+        'a': a,
+        'b': b,
+        'area': area,
+        'perimeter': perimeter,
+        'roundness': roundness,
+        'ellipse area': math.pi * a * b,
+        'a+b': a + b,
     }
     return params
 
