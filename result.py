@@ -38,7 +38,7 @@ class ResultWrapper:
         utils.save_region_data(file, region_data)
 
     def save_table(self, out_dir, file='results.csv',
-                   fields=('id', 'score', 'area', 'perimeter', 'roundness', 'ellipse area', 'a', 'b', 'a+b')):
+                   fields=('id', 'score', 'area', 'perimeter', 'roundness', 'ellipse_area', 'a', 'b', 'a+b')):
         path = os.path.join(out_dir, file)
         self.get_df(fields).to_csv(path, index=False, float_format='%.3f')
 
@@ -66,7 +66,7 @@ def extract_contour_params(i, cnt):
         'area': area,
         'perimeter': perimeter,
         'roundness': roundness,
-        'ellipse area': math.pi * a * b,
+        'ellipse_area': math.pi * a * b,
         'a+b': a + b,
     }
     return params
