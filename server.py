@@ -18,7 +18,7 @@ app = Flask(__name__)
 UPLOAD_FOLDER = './uploads'
 ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png', 'tif', 'tiff'}
 MODEL_PATH = 'models/final.h5'
-IMG_EXT = 'png'
+IMG_EXT = 'jpg'
 MAX_UPLOADS = 10
 ANNOTATION_FILE_NAME = 'via_region_data_detect.json'
 
@@ -93,7 +93,6 @@ def upload():
 
     session_id = uuid.uuid4().hex
     images = get_images(request)
-    images = utils.resize_images(images, size=1024)
     images = utils.change_ext(images, IMG_EXT)
 
     base_path = os.path.join(UPLOAD_FOLDER, session_id)
