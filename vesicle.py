@@ -35,7 +35,7 @@ def detect(images: utils.Images, output_dir, model: modellib.MaskRCNN):
 
     # Экспорт разметки
     os.makedirs(output_dir, exist_ok=True)
-    results = ResultWrapper.from_result(results_dict)
+    results = ResultWrapper.from_result(results_dict, images)
     results.visualize(images)
     results.save_annotation(os.path.join(output_dir, DETECTOR_FILE_NAME))
     results.save_table(output_dir)
@@ -66,7 +66,7 @@ def export_results(input_dir, out_dir):
     else:
         shutil.move(input_path, output_path)
 
-    results = ResultWrapper.from_json(output_path)
+    results = ResultWrapper.from_json(output_path, [])
     results.save_table(out_dir)
 
 

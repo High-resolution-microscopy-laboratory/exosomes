@@ -343,3 +343,14 @@ def poly_from_str(s):
         xs.append(float(x))
         ys.append(float(y))
     return np.array(xs), np.array(ys)
+
+
+def on_edge(cnt, img_shape, radius) -> bool:
+    h, w = img_shape[:2]
+    points_on_edge = 0
+    for point in cnt:
+        x, y = point[0]
+        if x < radius or y < radius or x > w - radius or y > h - radius:
+            points_on_edge += 1
+    print(points_on_edge)
+    return points_on_edge > 0
