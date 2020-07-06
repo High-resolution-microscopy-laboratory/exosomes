@@ -5,6 +5,7 @@ import numpy as np
 from pathlib import Path
 import shutil
 from typing import List, Dict
+import math
 
 Images = Dict[str, np.ndarray]
 
@@ -354,3 +355,23 @@ def on_edge(cnt, img_shape, radius) -> bool:
             points_on_edge += 1
     print(points_on_edge)
     return points_on_edge > 0
+
+
+def roundness(cnt) -> float:
+    area = cv.contourArea(cnt)
+    perimeter = cv.arcLength(cnt, True)
+    if perimeter > 0:
+        return (4 * math.pi * area) / (perimeter ** 2)
+    else:
+        return 0
+
+
+def get_contours(result: dict) -> list:
+    masks = result['masks']
+    contours = []
+    for i in range(masks.shape[2]):
+        mask = masks[:, :, i].astype(np.uint8)
+        _, contours, _ = cv.findContours(mask, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_TC89_KCOS)
+        cnt = contours[0]
+        contours.append(cnt)
+    return contours

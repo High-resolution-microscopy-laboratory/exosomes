@@ -12,25 +12,19 @@ Usage: import the module (see Jupyter notebooks for examples), or run from
     python3 detector.py train --dataset=/path/to/vesicles/dataset --weights=imagenet
 
 """
-# import logging
-# logging.getLogger('tensorflow').disabled = True
-
-from tensorflow.python.util import deprecation
-
-deprecation._PRINT_DEPRECATION_WARNINGS = False
-
 import os
 import sys
 from collections import OrderedDict
 
 import keras
+import tensorflow as tf
 import numpy as np
 import skimage.draw
 import skimage.io
 import xmltodict
 from imgaug import augmenters as iaa
 
-from utils import poly_from_str
+from utils import poly_from_str, roundness, get_contours
 
 # Root directory of the project
 ROOT_DIR = os.path.abspath("./")
@@ -69,7 +63,7 @@ class VesicleConfig(Config):
     NUM_CLASSES = 1 + 1  # Background + vesicle
 
     # Number of training steps per epoch
-    STEPS_PER_EPOCH = 138
+    STEPS_PER_EPOCH = 10
 
     # Skip detections with < 60% confidence
     DETECTION_MIN_CONFIDENCE = 0.6
@@ -236,6 +230,47 @@ class MeanAveragePrecisionCallback(keras.callbacks.Callback):
         return np.array(mAPs)
 
 
+class BoardCallback(keras.callbacks.Callback):
+    def __init__(self, log_dir, train_model: modellib.MaskRCNN, inference_model: modellib.MaskRCNN, dataset: utils.Dataset,
+                 dataset_limit=None,
+                 verbose=1):
+        super().__init__()
+        self.train_model = train_model
+        self.inference_model = inference_model
+        self.dataset = dataset
+        self.dataset_limit = len(self.dataset.image_ids)
+        if dataset_limit is not None:
+            self.dataset_limit = dataset_limit
+        self.dataset_image_ids = self.dataset.image_ids.copy()
+        self.writer = tf.summary.FileWriter(log_dir)
+
+        if inference_model.config.BATCH_SIZE != 1:
+            raise ValueError("This callback only works with the bacth size of 1")
+
+        self._verbose_print = print if verbose > 0 else lambda *a, **k: None
+
+    def _load_weights_for_model(self):
+        last_weights_path = self.train_model.find_last()
+        self._verbose_print("Loaded weights for the inference model (last checkpoint of the train model): {0}".format(
+            last_weights_path))
+        self.inference_model.load_weights(last_weights_path,
+                                          by_name=True)
+
+    def on_epoch_end(self, epoch, logs=None):
+        # super().on_epoch_end(epoch, logs)
+        self._verbose_print("Calculating metrics...")
+        self._load_weights_for_model()
+
+        metrics = compute_metrics(self.inference_model, self.dataset)
+        summary = tf.Summary()
+        for key, value in metrics.items():
+            summary_value = summary.value.add()
+            summary_value.simple_value = value
+            summary_value.tag = key
+        self.writer.add_summary(summary, epoch)
+        self.writer.flush()
+
+
 def train(model, epochs=EPOCHS):
     """Train the model."""
 
@@ -263,22 +298,26 @@ def train(model, epochs=EPOCHS):
                                                                    inference_model, dataset_val,
                                                                    calculate_map_at_every_X_epoch=1,
                                                                    verbose=1)
+
+    board_callback = BoardCallback(model.log_dir + '_metrics', model, inference_model, dataset_val)
+
     print("Training network")
     model.train(dataset_train, dataset_val,
                 learning_rate=config.LEARNING_RATE,
                 epochs=epochs,
                 augmentation=augmentation,
-                custom_callbacks=[mean_average_precision_callback],
+                custom_callbacks=[board_callback],
                 layers='heads')
 
 
 # noinspection PyPep8Naming
-def compute_metrics(dataset: VesicleDataset, limit=0):
+def compute_metrics(model: modellib.MaskRCNN, dataset: modellib.utils.Dataset, limit=0):
     mAPs = []
     APs_75 = []
     APs_5 = []
     recalls_75 = []
     recalls_5 = []
+    roundness_list = []
 
     end = limit if limit != 0 else len(dataset.image_ids)
     for image_id in dataset.image_ids[:end]:
@@ -305,30 +344,44 @@ def compute_metrics(dataset: VesicleDataset, limit=0):
 
         recall_75, _ = utils.compute_recall(r['rois'], gt_bbox, iou=0.75)
         recall_5, _ = utils.compute_recall(r['rois'], gt_bbox, iou=0.5)
+        # Roundness
+        contours = get_contours(r)
+        img_roundness = avg_roundness(contours)
 
         mAPs.append(mAP)
         APs_75.append(AP_75)
         APs_5.append(AP_5)
         recalls_75.append(recall_75)
         recalls_5.append(recall_5)
+        roundness_list.append(img_roundness)
 
-    return tuple(np.mean(m) for m in [mAPs, APs_75, APs_5, recalls_75, recalls_5])
+    return {name: np.mean(values) for name in
+            ['mAP@IoU Rng', 'mAP@IoU=75', 'mAP@IoU=50', 'Recall @ IoU=75', 'Recall @ IoU=50', 'Roundness']
+            for values in [mAPs, APs_75, APs_5, recalls_75, recalls_5, roundness_list]}
 
 
 def f_score(precision, recall):
     return 2 * precision * recall / (precision + recall)
 
 
+def avg_roundness(contours) -> float:
+    if len(contours) > 0:
+        return sum([roundness(cnt) for cnt in contours]) / len(contours)
+    else:
+        return 0
+
+
 # noinspection PyPep8Naming
 def evaluate(dataset: VesicleDataset, tag='', limit=0, out=None):
-    mAP, mAP_75, mAP_5, recall_75, recall_5 = compute_metrics(dataset, limit)
+    mAP, mAP_75, mAP_5, recall_75, recall_5, roundness = compute_metrics(model, dataset, limit)
     F1 = f_score(mAP_75, recall_75)
-    print(f'  mAP   @ IoU Rng :\t{mAP:.3} ')
-    print(f'  mAP   @ IoU=75  :\t{mAP_75:.3}')
-    print(f'  mAP   @ IoU=50  :\t{mAP_5:.3}')
-    print(f'Recall  @ IoU=75  :\t{recall_75:.3}')
-    print(f'Recall  @ IoU=50  :\t{recall_5:.3}')
-    print(f'F Score @ IoU=75  :\t{F1:.3} ')
+    print(f'   mAP @ IoU Rng :\t{mAP:.3}')
+    print(f'    mAP @ IoU=75 :\t{mAP_75:.3}')
+    print(f'    mAP @ IoU=50 :\t{mAP_5:.3}')
+    print(f' Recall @ IoU=75 :\t{recall_75:.3}')
+    print(f' Recall @ IoU=50 :\t{recall_5:.3}')
+    print(f'F Score @ IoU=75 :\t{F1:.3}')
+    print(f'       Roundness :\t{roundness:.3}')
     if out:
         with open(out, 'a') as f:
             f.write(f'{tag}, {mAP:.3}, {mAP_75:.3}, {mAP_5:.3}, {recall_75:.3}, {recall_5:.3}, {F1:.3}\n')
