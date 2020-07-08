@@ -23,6 +23,7 @@ import skimage.draw
 import skimage.io
 import xmltodict
 from imgaug import augmenters as iaa
+import pprint
 
 from utils import poly_from_str, roundness, get_contours
 
@@ -63,7 +64,7 @@ class VesicleConfig(Config):
     NUM_CLASSES = 1 + 1  # Background + vesicle
 
     # Number of training steps per epoch
-    STEPS_PER_EPOCH = 10
+    STEPS_PER_EPOCH = 138 * 2
 
     # Skip detections with < 60% confidence
     DETECTION_MIN_CONFIDENCE = 0.6
@@ -71,7 +72,7 @@ class VesicleConfig(Config):
     # resnet 50 or resnet101
     BACKBONE = "resnet50"
 
-    LEARNING_RATE = 0.001
+    LEARNING_RATE = 0.0005
 
 
 class VesicleGrayConfig(VesicleConfig):
@@ -231,10 +232,12 @@ class MeanAveragePrecisionCallback(keras.callbacks.Callback):
 
 
 class BoardCallback(keras.callbacks.Callback):
-    def __init__(self, log_dir, train_model: modellib.MaskRCNN, inference_model: modellib.MaskRCNN, dataset: utils.Dataset,
+    def __init__(self, log_dir, train_model: modellib.MaskRCNN, inference_model: modellib.MaskRCNN,
+                 dataset: utils.Dataset,
                  dataset_limit=None,
                  verbose=1):
         super().__init__()
+        self.log_dir = log_dir
         self.train_model = train_model
         self.inference_model = inference_model
         self.dataset = dataset
@@ -242,7 +245,7 @@ class BoardCallback(keras.callbacks.Callback):
         if dataset_limit is not None:
             self.dataset_limit = dataset_limit
         self.dataset_image_ids = self.dataset.image_ids.copy()
-        self.writer = tf.summary.FileWriter(log_dir)
+        self.writer = tf.summary.FileWriter(self.log_dir)
 
         if inference_model.config.BATCH_SIZE != 1:
             raise ValueError("This callback only works with the bacth size of 1")
@@ -257,11 +260,13 @@ class BoardCallback(keras.callbacks.Callback):
                                           by_name=True)
 
     def on_epoch_end(self, epoch, logs=None):
-        # super().on_epoch_end(epoch, logs)
         self._verbose_print("Calculating metrics...")
         self._load_weights_for_model()
-
         metrics = compute_metrics(self.inference_model, self.dataset)
+        pprint.pprint(metrics)
+        # super().on_epoch_end(epoch, metrics)
+
+        # metrics = compute_metrics(self.inference_model, self.dataset)
         summary = tf.Summary()
         for key, value in metrics.items():
             summary_value = summary.value.add()
@@ -299,7 +304,7 @@ def train(model, epochs=EPOCHS):
                                                                    calculate_map_at_every_X_epoch=1,
                                                                    verbose=1)
 
-    board_callback = BoardCallback(model.log_dir + '_metrics', model, inference_model, dataset_val)
+    board_callback = BoardCallback(model.log_dir, model, inference_model, dataset_val)
 
     print("Training network")
     model.train(dataset_train, dataset_val,
@@ -355,9 +360,12 @@ def compute_metrics(model: modellib.MaskRCNN, dataset: modellib.utils.Dataset, l
         recalls_5.append(recall_5)
         roundness_list.append(img_roundness)
 
-    return {name: np.mean(values) for name in
-            ['mAP@IoU Rng', 'mAP@IoU=75', 'mAP@IoU=50', 'Recall @ IoU=75', 'Recall @ IoU=50', 'Roundness']
-            for values in [mAPs, APs_75, APs_5, recalls_75, recalls_5, roundness_list]}
+    names = ['mAP@IoU Rng', 'mAP@IoU=75', 'mAP@IoU=50', 'Recall @ IoU=75', 'Recall @ IoU=50', 'Roundness']
+    values_list = [mAPs, APs_75, APs_5, recalls_75, recalls_5, roundness_list]
+    avg_values = [np.mean(values) for values in values_list]
+    print(list(zip(names, avg_values)))
+
+    return {name: value for name, value in zip(names, avg_values)}
 
 
 def f_score(precision, recall):
