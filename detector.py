@@ -24,6 +24,7 @@ import skimage.io
 import xmltodict
 from imgaug import augmenters as iaa
 import pprint
+from typing import List, Tuple, Iterator
 
 from utils import poly_from_str, roundness, get_contours
 
@@ -64,7 +65,7 @@ class VesicleConfig(Config):
     NUM_CLASSES = 1 + 1  # Background + vesicle
 
     # Number of training steps per epoch
-    STEPS_PER_EPOCH = 138 * 2
+    STEPS_PER_EPOCH = 138 * 3
 
     # Skip detections with < 60% confidence
     DETECTION_MIN_CONFIDENCE = 0.6
@@ -168,69 +169,6 @@ class VesicleDataset(utils.Dataset):
             super(self.__class__, self).image_reference(image_id)
 
 
-class MeanAveragePrecisionCallback(keras.callbacks.Callback):
-    def __init__(self, train_model: modellib.MaskRCNN, inference_model: modellib.MaskRCNN, dataset: utils.Dataset,
-                 calculate_map_at_every_X_epoch=5, dataset_limit=None,
-                 verbose=1):
-        super().__init__()
-        self.train_model = train_model
-        self.inference_model = inference_model
-        self.dataset = dataset
-        self.calculate_map_at_every_X_epoch = calculate_map_at_every_X_epoch
-        self.dataset_limit = len(self.dataset.image_ids)
-        if dataset_limit is not None:
-            self.dataset_limit = dataset_limit
-        self.dataset_image_ids = self.dataset.image_ids.copy()
-
-        if inference_model.config.BATCH_SIZE != 1:
-            raise ValueError("This callback only works with the bacth size of 1")
-
-        self._verbose_print = print if verbose > 0 else lambda *a, **k: None
-
-    def on_epoch_end(self, epoch, logs=None):
-
-        if epoch > 2 and (epoch + 1) % self.calculate_map_at_every_X_epoch == 0:
-            self._verbose_print("Calculating mAP...")
-            self._load_weights_for_model()
-
-            mAPs = self._calculate_mean_average_precision()
-            mAP = np.mean(mAPs)
-
-            if logs is not None:
-                logs["val_mean_average_precision"] = mAP
-
-            self._verbose_print("mAP at epoch {0} is: {1}".format(epoch + 1, mAP))
-
-        super().on_epoch_end(epoch, logs)
-
-    def _load_weights_for_model(self):
-        last_weights_path = self.train_model.find_last()
-        self._verbose_print("Loaded weights for the inference model (last checkpoint of the train model): {0}".format(
-            last_weights_path))
-        self.inference_model.load_weights(last_weights_path,
-                                          by_name=True)
-
-    def _calculate_mean_average_precision(self):
-        mAPs = []
-
-        # Use a random subset of the data when a limit is defined
-        np.random.shuffle(self.dataset_image_ids)
-
-        for image_id in self.dataset_image_ids[:self.dataset_limit]:
-            image, image_meta, gt_class_id, gt_bbox, gt_mask = modellib.load_image_gt(self.dataset,
-                                                                                      self.inference_model.config,
-                                                                                      image_id, use_mini_mask=False)
-            molded_images = np.expand_dims(modellib.mold_image(image, self.inference_model.config), 0)
-            results = self.inference_model.detect(molded_images, verbose=0)
-            r = results[0]
-            # Compute mAP - VOC uses IoU 0.5
-            AP, _, _, _ = utils.compute_ap(gt_bbox, gt_class_id, gt_mask, r["rois"],
-                                           r["class_ids"], r["scores"], r['masks'])
-            mAPs.append(AP)
-
-        return np.array(mAPs)
-
-
 class BoardCallback(keras.callbacks.Callback):
     def __init__(self, log_dir, train_model: modellib.MaskRCNN, inference_model: modellib.MaskRCNN,
                  dataset: utils.Dataset,
@@ -264,14 +202,11 @@ class BoardCallback(keras.callbacks.Callback):
         self._load_weights_for_model()
         metrics = compute_metrics(self.inference_model, self.dataset)
         pprint.pprint(metrics)
-        # super().on_epoch_end(epoch, metrics)
-
-        # metrics = compute_metrics(self.inference_model, self.dataset)
         summary = tf.Summary()
-        for key, value in metrics.items():
+        for key, value in metrics:
             summary_value = summary.value.add()
             summary_value.simple_value = value
-            summary_value.tag = key
+            summary_value.tag = 'Metrics/' + key
         self.writer.add_summary(summary, epoch)
         self.writer.flush()
 
@@ -299,11 +234,6 @@ def train(model, epochs=EPOCHS):
     inference_model = modellib.MaskRCNN(mode="inference", config=config,
                                         model_dir=args.logs)
 
-    mean_average_precision_callback = MeanAveragePrecisionCallback(model,
-                                                                   inference_model, dataset_val,
-                                                                   calculate_map_at_every_X_epoch=1,
-                                                                   verbose=1)
-
     board_callback = BoardCallback(model.log_dir, model, inference_model, dataset_val)
 
     print("Training network")
@@ -316,7 +246,7 @@ def train(model, epochs=EPOCHS):
 
 
 # noinspection PyPep8Naming
-def compute_metrics(model: modellib.MaskRCNN, dataset: modellib.utils.Dataset, limit=0):
+def compute_metrics(model: modellib.MaskRCNN, dataset: modellib.utils.Dataset, limit=0) -> Iterator[Tuple]:
     mAPs = []
     APs_75 = []
     APs_5 = []
@@ -360,12 +290,13 @@ def compute_metrics(model: modellib.MaskRCNN, dataset: modellib.utils.Dataset, l
         recalls_5.append(recall_5)
         roundness_list.append(img_roundness)
 
-    names = ['mAP@IoU Rng', 'mAP@IoU=75', 'mAP@IoU=50', 'Recall @ IoU=75', 'Recall @ IoU=50', 'Roundness']
+    names = ['1. mAP@IoU Rng', '2. mAP@IoU=75', '3. mAP@IoU=50',
+             '4. Recall @ IoU=75', '5. Recall @ IoU=50', '6. Roundness']
     values_list = [mAPs, APs_75, APs_5, recalls_75, recalls_5, roundness_list]
     avg_values = [np.mean(values) for values in values_list]
     print(list(zip(names, avg_values)))
 
-    return {name: value for name, value in zip(names, avg_values)}
+    return zip(names, avg_values)
 
 
 def f_score(precision, recall):
