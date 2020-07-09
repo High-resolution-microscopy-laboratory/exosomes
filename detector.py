@@ -24,8 +24,10 @@ import skimage.io
 import xmltodict
 from imgaug import augmenters as iaa
 import pprint
-from typing import List, Tuple, Iterator
+from typing import List, Tuple, Iterator, Dict
+import cv2 as cv
 
+from result import ResultWrapper
 from utils import poly_from_str, roundness, get_contours
 
 # Root directory of the project
@@ -65,7 +67,7 @@ class VesicleConfig(Config):
     NUM_CLASSES = 1 + 1  # Background + vesicle
 
     # Number of training steps per epoch
-    STEPS_PER_EPOCH = 138 * 3
+    STEPS_PER_EPOCH = 10
 
     # Skip detections with < 60% confidence
     DETECTION_MIN_CONFIDENCE = 0.6
@@ -200,14 +202,27 @@ class BoardCallback(keras.callbacks.Callback):
     def on_epoch_end(self, epoch, logs=None):
         self._verbose_print("Calculating metrics...")
         self._load_weights_for_model()
-        metrics = compute_metrics(self.inference_model, self.dataset)
+
+        images, gt_boxes, gt_class_ids, gt_masks, results = detect(self.inference_model, self.dataset)
+        metrics = compute_metrics(images, gt_boxes, gt_class_ids, gt_masks, results)
+
         pprint.pprint(metrics)
+
+        # Images
+        summary_img = tf.Summary()
+        for i, img in enumerate(images):
+            _, buf = cv.imencode('.png', img)
+            im_summary = tf.Summary.Image(encoded_image_string=buf.tobytes())
+            summary_img.value.add(tag=f'img/{i}', image=im_summary)
+
+        # Metrics
         summary = tf.Summary()
         for key, value in metrics:
             summary_value = summary.value.add()
             summary_value.simple_value = value
             summary_value.tag = 'Metrics/' + key
         self.writer.add_summary(summary, epoch)
+        self.writer.add_summary(summary_img, epoch)
         self.writer.flush()
 
 
@@ -245,8 +260,30 @@ def train(model, epochs=EPOCHS):
                 layers='heads')
 
 
+def detect(model: modellib.MaskRCNN, dataset: modellib.utils.Dataset, limit=0):
+    gt_boxes = []
+    gt_class_ids = []
+    gt_masks = []
+    results = []
+    images = []
+    end = limit if limit != 0 else len(dataset.image_ids)
+    for image_id in dataset.image_ids[:end]:
+        image, image_meta, gt_class_id, gt_bbox, gt_mask = \
+            modellib.load_image_gt(dataset, config,
+                                   image_id, use_mini_mask=False)
+        images.append(image)
+        gt_boxes.append(gt_bbox)
+        gt_class_ids.append(gt_class_id)
+        gt_masks.append(gt_mask)
+
+        result = model.detect([image], verbose=0)
+        results.append(result)
+
+    return images, gt_boxes, gt_class_ids, gt_masks, results
+
+
 # noinspection PyPep8Naming
-def compute_metrics(model: modellib.MaskRCNN, dataset: modellib.utils.Dataset, limit=0) -> Iterator[Tuple]:
+def compute_metrics(images, gt_boxes, gt_class_ids, gt_masks, results_list) -> Iterator[Tuple]:
     mAPs = []
     APs_75 = []
     APs_5 = []
@@ -254,15 +291,7 @@ def compute_metrics(model: modellib.MaskRCNN, dataset: modellib.utils.Dataset, l
     recalls_5 = []
     roundness_list = []
 
-    end = limit if limit != 0 else len(dataset.image_ids)
-    for image_id in dataset.image_ids[:end]:
-        # Load image
-        image, image_meta, gt_class_id, gt_bbox, gt_mask = \
-            modellib.load_image_gt(dataset, config,
-                                   image_id, use_mini_mask=False)
-        # Run object detection
-        results = model.detect([image], verbose=0)
-
+    for image, gt_bbox, gt_class_id, gt_mask, results in zip(images, gt_boxes, gt_class_ids, gt_masks, results_list):
         # Compute metrics
         r = results[0]
 
@@ -312,7 +341,9 @@ def avg_roundness(contours) -> float:
 
 # noinspection PyPep8Naming
 def evaluate(dataset: VesicleDataset, tag='', limit=0, out=None):
-    mAP, mAP_75, mAP_5, recall_75, recall_5, roundness = compute_metrics(model, dataset, limit)
+    images, gt_boxes, gt_class_ids, gt_masks, results = detect(model, dataset, limit)
+    mAP, mAP_75, mAP_5, recall_75, recall_5, roundness = compute_metrics(images, gt_boxes, gt_class_ids,
+                                                                         gt_masks, results)
     F1 = f_score(mAP_75, recall_75)
     print(f'   mAP @ IoU Rng :\t{mAP:.3}')
     print(f'    mAP @ IoU=75 :\t{mAP_75:.3}')

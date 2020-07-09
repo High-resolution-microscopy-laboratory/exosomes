@@ -372,6 +372,7 @@ def get_contours(result: dict) -> list:
     for i in range(masks.shape[2]):
         mask = masks[:, :, i].astype(np.uint8)
         _, contours, _ = cv.findContours(mask, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_TC89_KCOS)
-        cnt = contours[0]
-        contours.append(cnt)
+        if contours:
+            cnt = contours[0]
+            contours.append(cnt)
     return contours
