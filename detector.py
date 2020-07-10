@@ -351,8 +351,8 @@ def avg_roundness(contours) -> float:
 # noinspection PyPep8Naming
 def evaluate(dataset: VesicleDataset, tag='', limit=0, out=None):
     images, gt_boxes, gt_class_ids, gt_masks, results = detect(model, dataset, limit)
-    mAP, mAP_75, mAP_5, recall_75, recall_5, roundness = compute_metrics(images, gt_boxes, gt_class_ids,
-                                                                         gt_masks, results)
+    metrics = compute_metrics(images, gt_boxes, gt_class_ids, gt_masks, results)
+    mAP, mAP_75, mAP_5, recall_75, recall_5, roundness = [m[1] for m in metrics]
     F1 = f_score(mAP_75, recall_75)
     print(f'   mAP @ IoU Rng :\t{mAP:.3}')
     print(f'    mAP @ IoU=75 :\t{mAP_75:.3}')
