@@ -67,7 +67,7 @@ class VesicleConfig(Config):
     NUM_CLASSES = 1 + 1  # Background + vesicle
 
     # Number of training steps per epoch
-    STEPS_PER_EPOCH = 138 * 2
+    STEPS_PER_EPOCH = 138
 
     # Skip detections with < 60% confidence
     DETECTION_MIN_CONFIDENCE = 0.6
@@ -75,7 +75,15 @@ class VesicleConfig(Config):
     # resnet 50 or resnet101
     BACKBONE = "resnet50"
 
-    LEARNING_RATE = 0.001
+    LEARNING_RATE = 0.0005
+
+    LOSS_WEIGHTS = {
+        "rpn_class_loss": 1.,
+        "rpn_bbox_loss": 1.,
+        "mrcnn_class_loss": 1.,
+        "mrcnn_bbox_loss": 1.,
+        "mrcnn_mask_loss": 0.2
+    }
 
 
 class VesicleGrayConfig(VesicleConfig):
