@@ -28,7 +28,7 @@ from typing import List, Tuple, Iterator, Dict
 import cv2 as cv
 
 from result import ResultWrapper
-from utils import poly_from_str, roundness, get_contours
+from utils import poly_from_str, roundness, get_contours, visualize_result
 
 # Root directory of the project
 ROOT_DIR = os.path.abspath("./")
@@ -67,7 +67,7 @@ class VesicleConfig(Config):
     NUM_CLASSES = 1 + 1  # Background + vesicle
 
     # Number of training steps per epoch
-    STEPS_PER_EPOCH = 10
+    STEPS_PER_EPOCH = 138 * 2
 
     # Skip detections with < 60% confidence
     DETECTION_MIN_CONFIDENCE = 0.6
@@ -75,7 +75,7 @@ class VesicleConfig(Config):
     # resnet 50 or resnet101
     BACKBONE = "resnet50"
 
-    LEARNING_RATE = 0.0005
+    LEARNING_RATE = 0.001
 
 
 class VesicleGrayConfig(VesicleConfig):
@@ -211,6 +211,7 @@ class BoardCallback(keras.callbacks.Callback):
         # Images
         summary_img = tf.Summary()
         for i, img in enumerate(images):
+            visualize_result(img, results[i])
             _, buf = cv.imencode('.png', img)
             im_summary = tf.Summary.Image(encoded_image_string=buf.tobytes())
             summary_img.value.add(tag=f'img/{i}', image=im_summary)
@@ -251,7 +252,7 @@ def train(model, epochs=EPOCHS):
 
     board_callback = BoardCallback(model.log_dir, model, inference_model, dataset_val)
 
-    print("Training network")
+    print("Training all network layers")
     model.train(dataset_train, dataset_val,
                 learning_rate=config.LEARNING_RATE,
                 epochs=epochs,
@@ -277,7 +278,7 @@ def detect(model: modellib.MaskRCNN, dataset: modellib.utils.Dataset, limit=0):
         gt_masks.append(gt_mask)
 
         result = model.detect([image], verbose=0)
-        results.append(result)
+        results.append(result[0])
 
     return images, gt_boxes, gt_class_ids, gt_masks, results
 
@@ -293,7 +294,7 @@ def compute_metrics(images, gt_boxes, gt_class_ids, gt_masks, results_list) -> I
 
     for image, gt_bbox, gt_class_id, gt_mask, results in zip(images, gt_boxes, gt_class_ids, gt_masks, results_list):
         # Compute metrics
-        r = results[0]
+        r = results
 
         AP_75, precisions, recalls, overlaps = \
             utils.compute_ap(gt_bbox, gt_class_id, gt_mask,

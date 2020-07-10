@@ -376,3 +376,14 @@ def get_contours(result: dict) -> list:
             cnt = contours[0]
             contours.append(cnt)
     return contours
+
+
+def visualize_result(img, result: dict):
+    k = max(img.shape) / 1024
+    t = round(k)
+    color = (0, 255, 0)
+    masks = result['masks']
+    for i in range(masks.shape[2]):
+        mask = masks[:, :, i].astype(np.uint8)
+        _, contours, _ = cv.findContours(mask, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_TC89_KCOS)
+        cv.drawContours(img, contours, -1, color, t, cv.LINE_AA)
