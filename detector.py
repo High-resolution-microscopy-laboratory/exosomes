@@ -75,7 +75,7 @@ class VesicleConfig(Config):
     # resnet 50 or resnet101
     BACKBONE = "resnet50"
 
-    LEARNING_RATE = 0.0005
+    LEARNING_RATE = 0.0001
 
     LOSS_WEIGHTS = {
         "rpn_class_loss": 1.,
@@ -95,7 +95,6 @@ class VesicleInferenceConfig(VesicleConfig):
     # Set batch size to 1 to run one image at a time
     GPU_COUNT = 1
     IMAGES_PER_GPU = 1
-    IMAGE_RESIZE_MODE = "none"
 
 
 ############################################################
@@ -103,8 +102,11 @@ class VesicleInferenceConfig(VesicleConfig):
 ############################################################
 
 class VesicleDataset(utils.Dataset):
-    # def load_image(self, image_id):
-    #     return cv.imread(self.image_info[image_id]['path'], 0)[..., np.newaxis]
+    def load_image(self, image_id):
+        img = cv.imread(self.image_info[image_id]['path'], cv.IMREAD_COLOR + cv.IMREAD_ANYDEPTH)[..., np.newaxis]
+        if img.dtype is np.dtype('uint16'):
+            img = img.astype(np.uint8)
+        return img
 
     def load_vesicle(self, dataset_dir, subset):
         """Load a subset of the Vesicles dataset.
@@ -219,6 +221,7 @@ class BoardCallback(keras.callbacks.Callback):
         # Images
         summary_img = tf.Summary()
         for i, img in enumerate(images):
+            img = cv.cvtColor(img, cv.COLOR_GRAY2BGR)
             visualize_result(img, results[i])
             _, buf = cv.imencode('.png', img)
             im_summary = tf.Summary.Image(encoded_image_string=buf.tobytes())
@@ -266,7 +269,7 @@ def train(model, epochs=EPOCHS):
                 epochs=epochs,
                 augmentation=augmentation,
                 custom_callbacks=[board_callback],
-                layers='heads')
+                layers='all')
 
 
 def detect(model: modellib.MaskRCNN, dataset: modellib.utils.Dataset, limit=0):
@@ -454,7 +457,7 @@ if __name__ == '__main__':
         # Exclude the last layers because they require a matching
         # number of classes
         model.load_weights(weights_path, by_name=True, exclude=[
-            # 'conv1',
+            'conv1',
             "mrcnn_class_logits", "mrcnn_bbox_fc",
             "mrcnn_bbox", "mrcnn_mask"])
     else:

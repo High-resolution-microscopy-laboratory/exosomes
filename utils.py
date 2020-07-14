@@ -18,7 +18,9 @@ def load_images(input_dir, extensions=('png', 'jpg', 'tif')) -> Images:
         if ext not in extensions:
             continue
         path = os.path.join(input_dir, file)
-        img = cv.imread(path, 1)
+        img = cv.imread(path, cv.IMREAD_COLOR + cv.IMREAD_ANYDEPTH)
+        if img.dtype is np.dtype('uint16'):
+            img = img.astype(np.uint8)
         images[file] = img
     return images
 

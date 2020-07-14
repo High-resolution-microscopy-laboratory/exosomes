@@ -17,7 +17,7 @@ app = Flask(__name__)
 
 UPLOAD_FOLDER = './uploads'
 ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png', 'tif', 'tiff'}
-MODEL_PATH = 'models/final.h5'
+MODEL_PATH = 'models/finetune_from_20_lr_0005/vesicle20200710T1339/mask_rcnn_vesicle_0026.h5'
 IMG_EXT = 'jpg'
 MAX_UPLOADS = 10
 ANNOTATION_FILE_NAME = 'via_region_data_detect.json'
@@ -61,7 +61,9 @@ def get_images(cur_request) -> Images:
             if file:
                 filename = secure_filename(file.filename)
                 img_array = np.asarray(bytearray(file.read()), dtype=np.uint8)
-                image = cv.imdecode(img_array, 1)
+                image = cv.imdecode(img_array, cv.IMREAD_COLOR + cv.IMREAD_ANYDEPTH)
+                if image.dtype is np.dtype('uint16'):
+                    image = image.astype(np.uint8)
                 images[filename] = image
     return images
 
