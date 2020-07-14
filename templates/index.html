@@ -4,10 +4,45 @@
 
         <h1>Vesicle detection</h1>
         <p></p>
-        <p>Upload up to {{ max_uploads }} images for detection<br> Supported formats: png, jpg, jpeg, tif, tiff</p>
+        <p>
+            Extracellular vesicles (EVs) are small particles surrounded by a lipid bilayer. Most cells are capable of
+            secreting EVs. They carry cargos between cells and play roles in diverse processing from embryo development
+            to injury response, and from angiogenesis to disease progression.
+            The typical size of EVs is in the range from 50-1000 nm, and TEM is the most convenient instrument for their
+            visualization. When analyzed by conventional TEM with heavy metal staining, most EVs exhibit a
+            characteristic cup-shaped morphology. Here you can automatically detect and measure EVs in your images
+        </p>
+        <img src="{{ url_for('static', filename='sample_vis.jpg') }}" alt="Result image">
+        <p>
+            Detection is based on the Mask R-CNN. Each particle is identified, labeled, and measured. The green
+            lines show the
+            detected edges of the particles, and the red lines show the ellipses used for approximation.
+        </p>
 
+        <img src="{{ url_for('static', filename='table.png') }}" alt="Result table">
+
+        <p>The measurement results are stored in a .csv file with the following parameters:</p>
+        <ul>
+            <li>Name – the file name</li>
+            <li>Id – the particle number</li>
+            <li>Score – the score of the particle, which is an estimate of the probability that this particle is a
+                vesicle
+            </li>
+            <li>Area – particle area, measured in pixels</li>
+            <li>Perimeter – particle perimeter, measured in pixels</li>
+            <li>Roundness – a value in the range from 0 to 1, a measure of the particle roundness, calculated as
+                Roundness = 4π(S/p2)
+            <li>Ellipse_area, a, b, and a+b are four parameters related to the ellipse approximating the detected
+                particle. The values a and b are the semi-axes of the ellipse, and a+b is a relevant estimate of the
+                particle size. All the parameters measured in pixels
+            </li>
+            <li>On_edge – a Boolean parameter indicating whether the particle touches the edge of the image</li>
+        </ul>
+
+        <p>Upload up to {{ max_uploads }} images for detection<br> Supported 8 and 16 bit images in formats: png, jpg,
+            jpeg, tif, tiff</p>
         <form action="{{ url_for('upload') }}" method="post" enctype="multipart/form-data"
-              class="form-inline, text-center"
+              class="form-inline"
               id="upload-form">
             <div class="form-group">
                 <input type="file" accept="image/*" name="files" id="files" class="form-control-file, text-center"

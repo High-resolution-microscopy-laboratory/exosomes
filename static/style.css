@@ -1,5 +1,5 @@
 main {
-    padding-top: 5.5rem;
+    padding-top: 2rem;
 }
 
 img {
@@ -17,4 +17,5 @@ img {
 
 #upload-form {
     padding-top: 1rem;
+    padding-bottom: 1rem;
 }
