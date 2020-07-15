@@ -105,7 +105,7 @@ class VesicleDataset(utils.Dataset):
     def load_image(self, image_id):
         img = cv.imread(self.image_info[image_id]['path'], cv.IMREAD_COLOR + cv.IMREAD_ANYDEPTH)[..., np.newaxis]
         if img.dtype is np.dtype('uint16'):
-            img = img.astype(np.uint8)
+            img = cv.normalize(img, img, 0, 255, cv.NORM_MINMAX, dtype=cv.CV_8U)
         return img
 
     def load_vesicle(self, dataset_dir, subset):

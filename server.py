@@ -63,7 +63,7 @@ def get_images(cur_request) -> Images:
                 img_array = np.asarray(bytearray(file.read()), dtype=np.uint8)
                 image = cv.imdecode(img_array, cv.IMREAD_COLOR + cv.IMREAD_ANYDEPTH)
                 if image.dtype is np.dtype('uint16'):
-                    image = image.astype(np.uint8)
+                    image = cv.normalize(image, image, 0, 255, cv.NORM_MINMAX, dtype=cv.CV_8U)
                 images[filename] = image
     return images
 
