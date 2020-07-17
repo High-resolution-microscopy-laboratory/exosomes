@@ -103,7 +103,7 @@ class VesicleInferenceConfig(VesicleConfig):
 
 class VesicleDataset(utils.Dataset):
     def load_image(self, image_id):
-        img = cv.imread(self.image_info[image_id]['path'], cv.IMREAD_COLOR + cv.IMREAD_ANYDEPTH)[..., np.newaxis]
+        img = cv.imread(self.image_info[image_id]['path'], cv.IMREAD_COLOR + cv.IMREAD_ANYDEPTH)
         if img.dtype is np.dtype('uint16'):
             img = cv.normalize(img, img, 0, 255, cv.NORM_MINMAX, dtype=cv.CV_8U)
         return img
@@ -117,7 +117,7 @@ class VesicleDataset(utils.Dataset):
         self.add_class("vesicle", 1, "vesicle")
 
         # Train or validation dataset?
-        assert subset in ["train", "val"]
+        assert subset in ['train', 'val', 'test']
         dataset_dir = os.path.join(dataset_dir, subset)
         annotation_path = os.path.join(dataset_dir, 'annotations.xml')
 
@@ -469,7 +469,7 @@ if __name__ == '__main__':
     elif args.command == "evaluate":
         # Validation dataset
         dataset_val = VesicleDataset()
-        dataset_val.load_vesicle(args.dataset, 'val')
+        dataset_val.load_vesicle(args.dataset, 'test')
         dataset_val.prepare()
         n_img = len(dataset_val.image_ids) if not args.eval_limit else len(dataset_val.image_ids[:args.eval_limit])
         print(f'Running evaluation on {n_img} images.')
