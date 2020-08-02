@@ -294,6 +294,85 @@ def detect(model: modellib.MaskRCNN, dataset: modellib.utils.Dataset, limit=0):
     return images, gt_boxes, gt_class_ids, gt_masks, results
 
 
+def get_bin_mask(mask):
+    n = np.max(mask)
+    bin_mask = np.zeros((*mask.shape[:2], n), dtype=np.bool)
+    for i in range(np.max(mask)):
+        bin_mask[:, :, i] = mask == i
+    return bin_mask
+
+
+def draw_mask_cnts(img, masks, color):
+    n = masks.shape[2]
+    for i in range(n):
+        mask = masks[:, :, i]
+        _, contours, _ = cv.findContours(mask.copy().astype(np.uint8), cv.RETR_EXTERNAL, cv.CHAIN_APPROX_TC89_KCOS)
+        cv.drawContours(img, contours, -1, color)
+
+
+def visualise(img, mask_gt, mask_det):
+    draw_mask_cnts(img, mask_gt, (0, 255, 0))
+    draw_mask_cnts(img, mask_det, (0, 0, 255))
+
+
+def get_fru_net_results(results_dir: str, dataset: VesicleDataset):
+    WIN_NAME = 'img'
+    cv.namedWindow(WIN_NAME)
+    gt_boxes = []  # list of ndarrays (nboxes, 4)
+    gt_class_ids = []  # list of ndarrays (nboxes,)
+    gt_masks = []  # list of bool ndarray(1024, 1024, nboxes)
+    results = []  # list of dicts
+    # roi: same as gt_boxes
+    # class_ids: same as class_ids
+    # scores: float list
+    # masks: same as gt_masks
+    images = []
+
+    for image_id in dataset.image_ids:
+        origin_img = dataset.load_image(image_id)
+        image, image_meta, gt_class_id, gt_bbox, gt_mask = \
+            modellib.load_image_gt(dataset, config,
+                                   image_id, use_mini_mask=False)
+        gt_boxes.append(gt_bbox)
+        gt_class_ids.append(gt_class_id)
+        gt_masks.append(gt_mask)
+
+        # load masks
+        img_name = dataset.image_info[image_id]['id']
+        name, ext = img_name.rsplit('.', 1)
+        path = os.path.join(results_dir, f'{name}_labels.{ext}')
+        mask_img = cv.imread(path, cv.IMREAD_GRAYSCALE + cv.IMREAD_ANYDEPTH)
+        n = np.max(mask_img)
+        class_ids = np.ones(n, dtype=np.int32)
+        scores = np.ones(n, dtype=np.float32)
+        mask = get_bin_mask(mask_img)
+
+        image, window, scale, padding, crop = utils.resize_image(
+            origin_img,
+            min_dim=config.IMAGE_MIN_DIM,
+            min_scale=config.IMAGE_MIN_SCALE,
+            max_dim=config.IMAGE_MAX_DIM,
+            mode=config.IMAGE_RESIZE_MODE)
+        mask = utils.resize_mask(mask, scale, padding, crop)
+        rois = utils.extract_bboxes(mask)
+        images.append(image)
+
+        vis_img = image.copy()
+        visualise(vis_img, gt_mask, mask)
+        cv.imshow(WIN_NAME, vis_img)
+        cv.waitKey(0)
+
+        result = {
+            'class_ids': class_ids,
+            'scores': scores,
+            'masks': mask,
+            'rois': rois
+        }
+        results.append(result)
+
+    return images, gt_boxes, gt_class_ids, gt_masks, results
+
+
 # noinspection PyPep8Naming
 def compute_metrics(images, gt_boxes, gt_class_ids, gt_masks, results_list) -> Iterator[Tuple]:
     mAPs = []
@@ -354,6 +433,24 @@ def avg_roundness(contours) -> float:
 # noinspection PyPep8Naming
 def evaluate(dataset: VesicleDataset, tag='', limit=0, out=None):
     images, gt_boxes, gt_class_ids, gt_masks, results = detect(model, dataset, limit)
+    metrics = compute_metrics(images, gt_boxes, gt_class_ids, gt_masks, results)
+    mAP, mAP_75, mAP_5, recall_75, recall_5, roundness = [m[1] for m in metrics]
+    F1 = f_score(mAP_75, recall_75)
+    print(f'   mAP @ IoU Rng :\t{mAP:.3}')
+    print(f'    mAP @ IoU=75 :\t{mAP_75:.3}')
+    print(f'    mAP @ IoU=50 :\t{mAP_5:.3}')
+    print(f' Recall @ IoU=75 :\t{recall_75:.3}')
+    print(f' Recall @ IoU=50 :\t{recall_5:.3}')
+    print(f'F Score @ IoU=75 :\t{F1:.3}')
+    print(f'       Roundness :\t{roundness:.3}')
+    if out:
+        with open(out, 'a') as f:
+            f.write(f'{tag}, {mAP:.3}, {mAP_75:.3}, {mAP_5:.3}, {recall_75:.3}, {recall_5:.3}, {F1:.3}\n')
+
+
+def evaluate_fru_net(dataset: VesicleDataset, tag='', limit=0, out=None):
+    images, gt_boxes, gt_class_ids, gt_masks, results = get_fru_net_results(
+        '/home/ruslan/projects/FRU_processing/code/fru_test_no_bars_results', dataset)
     metrics = compute_metrics(images, gt_boxes, gt_class_ids, gt_masks, results)
     mAP, mAP_75, mAP_5, recall_75, recall_5, roundness = [m[1] for m in metrics]
     F1 = f_score(mAP_75, recall_75)
@@ -473,7 +570,7 @@ if __name__ == '__main__':
         dataset_val.prepare()
         n_img = len(dataset_val.image_ids) if not args.eval_limit else len(dataset_val.image_ids[:args.eval_limit])
         print(f'Running evaluation on {n_img} images.')
-        evaluate(dataset_val, tag=args.tag, limit=args.eval_limit, out=args.out)
+        evaluate_fru_net(dataset_val, tag=args.tag, limit=args.eval_limit, out=args.out)
     else:
         print("'{}' is not recognized. "
               "Use 'train'".format(args.command))
