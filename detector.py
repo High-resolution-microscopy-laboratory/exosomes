@@ -297,7 +297,7 @@ def detect(model: modellib.MaskRCNN, dataset: modellib.utils.Dataset, limit=0):
 def get_bin_mask(mask):
     n = np.max(mask)
     bin_mask = np.zeros((*mask.shape[:2], n), dtype=np.bool)
-    for i in range(np.max(mask)):
+    for i in range(1, np.max(mask)):
         bin_mask[:, :, i] = mask == i
     return bin_mask
 
@@ -307,7 +307,7 @@ def draw_mask_cnts(img, masks, color):
     for i in range(n):
         mask = masks[:, :, i]
         _, contours, _ = cv.findContours(mask.copy().astype(np.uint8), cv.RETR_EXTERNAL, cv.CHAIN_APPROX_TC89_KCOS)
-        cv.drawContours(img, contours, -1, color)
+        cv.drawContours(img, contours, -1, color, 1, cv.LINE_AA)
 
 
 def visualise(img, mask_gt, mask_det):
@@ -318,14 +318,10 @@ def visualise(img, mask_gt, mask_det):
 def get_fru_net_results(results_dir: str, dataset: VesicleDataset):
     WIN_NAME = 'img'
     cv.namedWindow(WIN_NAME)
-    gt_boxes = []  # list of ndarrays (nboxes, 4)
-    gt_class_ids = []  # list of ndarrays (nboxes,)
-    gt_masks = []  # list of bool ndarray(1024, 1024, nboxes)
-    results = []  # list of dicts
-    # roi: same as gt_boxes
-    # class_ids: same as class_ids
-    # scores: float list
-    # masks: same as gt_masks
+    gt_boxes = []
+    gt_class_ids = []
+    gt_masks = []
+    results = []
     images = []
 
     for image_id in dataset.image_ids:
