@@ -39,8 +39,10 @@
             <li>On_edge – a Boolean parameter indicating whether the particle touches the edge of the image</li>
         </ul>
 
+
         <p>Upload up to {{ max_uploads }} images for detection<br> Supported 8 and 16 bit images in formats: png, jpg,
             jpeg, tif, tiff</p>
+        <p><a id="upload"></a></p>
         <form action="{{ url_for('upload') }}" method="post" enctype="multipart/form-data"
               class="form-inline"
               id="upload-form">
@@ -56,6 +58,9 @@
                 <span class="sr-only">Loading...</span>
             </div>
         </div>
+        <p>
+        <p><span class="text-muted">This work was supported by RFBR, project №19-34-90148.</span></span></p>
+        <p></p>
     </main>
     <script>
         (function () {
