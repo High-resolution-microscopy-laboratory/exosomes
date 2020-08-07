@@ -8,26 +8,22 @@ Usage: import the module (see Jupyter notebooks for examples), or run from
     # Resume training a model that you had trained earlier
     python3 detector.py train --dataset=/path/to/vesicles/dataset --weights=last
 
-    # Train a new model starting from ImageNet weights
-    python3 detector.py train --dataset=/path/to/vesicles/dataset --weights=imagenet
-
 """
 import os
+import pprint
 import sys
 from collections import OrderedDict
+from typing import Tuple, Iterator
 
+import cv2 as cv
 import keras
-import tensorflow as tf
 import numpy as np
 import skimage.draw
 import skimage.io
+import tensorflow as tf
 import xmltodict
 from imgaug import augmenters as iaa
-import pprint
-from typing import List, Tuple, Iterator, Dict
-import cv2 as cv
 
-from result import ResultWrapper
 from utils import poly_from_str, roundness, get_contours, visualize_result
 
 # Root directory of the project
@@ -566,7 +562,7 @@ if __name__ == '__main__':
         dataset_val.prepare()
         n_img = len(dataset_val.image_ids) if not args.eval_limit else len(dataset_val.image_ids[:args.eval_limit])
         print(f'Running evaluation on {n_img} images.')
-        evaluate_fru_net(dataset_val, tag=args.tag, limit=args.eval_limit, out=args.out)
+        evaluate(dataset_val, tag=args.tag, limit=args.eval_limit, out=args.out)
     else:
         print("'{}' is not recognized. "
               "Use 'train'".format(args.command))
