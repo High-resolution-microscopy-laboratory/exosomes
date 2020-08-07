@@ -2,13 +2,13 @@
 
 import os
 import shutil
-from result import ResultWrapper, get_params_and_visualize, visualize_all_params
-import utils
-import tensorflow as tf
+
 import mrcnn.model as modellib
+import tensorflow as tf
+
 import detector
-import cv2 as cv
-import numpy as np
+import utils
+from result import ResultWrapper
 
 DEFAULT_FILE_NAME = 'via_region_data.json'
 DETECTOR_FILE_NAME = 'via_region_data_detect.json'
