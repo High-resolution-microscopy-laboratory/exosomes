@@ -88,6 +88,7 @@ for set_name in SUBSETS:
     n_images, n_instances, areas = get_stats(load_annotations(DATA_DIR, set_name), showimg=SHOWIMG, resize=RESIZE)
     print(f'images: {n_images} instances: {n_instances}')
     areas_df = pd.DataFrame(areas)
+    areas_df.to_csv(f'{set_name}_no_resize.csv', header=False, index=False)
     print(areas_df.describe())
     sns.histplot(areas).set_title(f'{set_name} areas')
     plt.show()
