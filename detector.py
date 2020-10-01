@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 """
 Usage: import the module (see Jupyter notebooks for examples), or run from
        the command line as such:
@@ -23,6 +25,9 @@ import skimage.io
 import tensorflow as tf
 import xmltodict
 from imgaug import augmenters as iaa
+import neptune
+from neptunecontrib.versioning.data import log_data_version
+from neptunecontrib.monitoring.keras import NeptuneMonitor
 
 from utils import poly_from_str, roundness, get_contours, visualize_result
 
@@ -71,7 +76,7 @@ class VesicleConfig(Config):
     # resnet 50 or resnet101
     BACKBONE = "resnet50"
 
-    LEARNING_RATE = 0.0001
+    LEARNING_RATE = 0.001
 
     LOSS_WEIGHTS = {
         "rpn_class_loss": 1.,
@@ -178,12 +183,11 @@ class VesicleDataset(utils.Dataset):
 
 
 class BoardCallback(keras.callbacks.Callback):
-    def __init__(self, log_dir, train_model: modellib.MaskRCNN, inference_model: modellib.MaskRCNN,
+    def __init__(self, train_model: modellib.MaskRCNN, inference_model: modellib.MaskRCNN,
                  dataset: utils.Dataset,
                  dataset_limit=None,
                  verbose=1):
         super().__init__()
-        self.log_dir = log_dir
         self.train_model = train_model
         self.inference_model = inference_model
         self.dataset = dataset
@@ -191,12 +195,82 @@ class BoardCallback(keras.callbacks.Callback):
         if dataset_limit is not None:
             self.dataset_limit = dataset_limit
         self.dataset_image_ids = self.dataset.image_ids.copy()
-        self.writer = tf.summary.FileWriter(self.log_dir)
 
         if inference_model.config.BATCH_SIZE != 1:
             raise ValueError("This callback only works with the bacth size of 1")
 
         self._verbose_print = print if verbose > 0 else lambda *a, **k: None
+
+    def _load_weights_for_model(self):
+        last_weights_path = self.train_model.find_last()
+        self._verbose_print("Loaded weights for the inference model (last checkpoint of the train model): {0}".format(
+            last_weights_path))
+        self.inference_model.load_weights(last_weights_path,
+                                          by_name=True)
+
+
+class TensorBoardCallback(BoardCallback):
+    def __init__(self, log_dir, train_model: modellib.MaskRCNN, inference_model: modellib.MaskRCNN,
+                 dataset: utils.Dataset,
+                 dataset_limit=None,
+                 verbose=1):
+
+        super().__init__(train_model=train_model,
+                         inference_model=inference_model,
+                         dataset=dataset,
+                         dataset_limit=dataset_limit,
+                         verbose=verbose)
+
+        self.log_dir = log_dir
+        self.writer = tf.summary.FileWriter(self.log_dir)
+
+    def on_epoch_end(self, epoch, logs=None):
+        self._verbose_print("Calculating metrics...")
+        self._load_weights_for_model()
+
+        images, gt_boxes, gt_class_ids, gt_masks, results = detect(self.inference_model, self.dataset)
+        metrics = compute_metrics(images, gt_boxes, gt_class_ids, gt_masks, results)
+
+        pprint.pprint(metrics)
+
+        # Images
+        summary_img = tf.Summary()
+        for i, img in enumerate(images):
+            if img.shape[2] != 3:
+                img = cv.cvtColor(img, cv.COLOR_GRAY2BGR)
+            visualize_result(img, results[i])
+            _, buf = cv.imencode('.png', img)
+            im_summary = tf.Summary.Image(encoded_image_string=buf.tobytes())
+            summary_img.value.add(tag=f'img/{i}', image=im_summary)
+
+        # Metrics
+        summary = tf.Summary()
+        for key, value in metrics:
+            summary_value = summary.value.add()
+            summary_value.simple_value = value
+            summary_value.tag = 'Metrics/' + key
+        self.writer.add_summary(summary, epoch)
+        self.writer.add_summary(summary_img, epoch)
+        self.writer.flush()
+
+
+class NeptuneCallback(BoardCallback):
+    def __init__(self, project_name,
+                 params,
+                 train_model: modellib.MaskRCNN,
+                 inference_model: modellib.MaskRCNN,
+                 dataset: utils.Dataset,
+                 dataset_limit=None,
+                 verbose=1):
+        super().__init__(train_model=train_model,
+                         inference_model=inference_model,
+                         dataset=dataset,
+                         dataset_limit=dataset_limit,
+                         verbose=verbose)
+
+        neptune.init(project_name)
+        neptune.create_experiment(project_name, params=params, upload_source_files=['detector.py', 'utils.py'])
+        log_data_version(args.dataset)
 
     def _load_weights_for_model(self):
         last_weights_path = self.train_model.find_last()
@@ -215,23 +289,17 @@ class BoardCallback(keras.callbacks.Callback):
         pprint.pprint(metrics)
 
         # Images
-        summary_img = tf.Summary()
         for i, img in enumerate(images):
-            img = cv.cvtColor(img, cv.COLOR_GRAY2BGR)
+            if img.shape[2] != 3:
+                img = cv.cvtColor(img, cv.COLOR_GRAY2BGR)
             visualize_result(img, results[i])
-            _, buf = cv.imencode('.png', img)
-            im_summary = tf.Summary.Image(encoded_image_string=buf.tobytes())
-            summary_img.value.add(tag=f'img/{i}', image=im_summary)
+            # _, buf = cv.imencode('.png', img)
+            cv.imwrite(f'test_{i}.jpg', img)
+            neptune.log_image(f'image_epoch_{epoch}', img[..., ::-1])
 
         # Metrics
-        summary = tf.Summary()
         for key, value in metrics:
-            summary_value = summary.value.add()
-            summary_value.simple_value = value
-            summary_value.tag = 'Metrics/' + key
-        self.writer.add_summary(summary, epoch)
-        self.writer.add_summary(summary_img, epoch)
-        self.writer.flush()
+            neptune.log_metric(key, epoch, value)
 
 
 def train(model, epochs=EPOCHS):
@@ -256,15 +324,17 @@ def train(model, epochs=EPOCHS):
 
     inference_model = modellib.MaskRCNN(mode="inference", config=config,
                                         model_dir=args.logs)
-
-    board_callback = BoardCallback(model.log_dir, model, inference_model, dataset_val)
+    params = args.__dict__
+    params.update(config.__dict__)
+    neptune_callback = NeptuneCallback("neptunus/exosomes", params, model, inference_model, dataset_val)
+    tb_callback = TensorBoardCallback(model.log_dir, model, inference_model, dataset_val)
 
     print("Training all network layers")
     model.train(dataset_train, dataset_val,
                 learning_rate=config.LEARNING_RATE,
                 epochs=epochs,
                 augmentation=augmentation,
-                custom_callbacks=[board_callback],
+                custom_callbacks=[neptune_callback, tb_callback, NeptuneMonitor()],
                 layers='all')
 
 
@@ -489,6 +559,16 @@ if __name__ == '__main__':
                         type=int,
                         default=0,
                         help='Number of evaluation images')
+    parser.add_argument('--layers', required=False,
+                        type=str,
+                        default='all',
+                        help="""
+    - One of these predefined values:
+              heads: The RPN, classifier and mask heads of the network
+              all: All the layers
+              3+: Train Resnet stage 3 and up
+              4+: Train Resnet stage 4 and up
+              5+: Train Resnet stage 5 and up""")
     parser.add_argument('--out', required=False, type=str)
     parser.add_argument('--tag', required=False, type=str)
 
@@ -546,7 +626,6 @@ if __name__ == '__main__':
         # Exclude the last layers because they require a matching
         # number of classes
         model.load_weights(weights_path, by_name=True, exclude=[
-            'conv1',
             "mrcnn_class_logits", "mrcnn_bbox_fc",
             "mrcnn_bbox", "mrcnn_mask"])
     else:

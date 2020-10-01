@@ -1,4 +1,4 @@
-FROM tensorflow/tensorflow:1.11.0-py3
+FROM tensorflow/tensorflow:1.15.2-gpu-py3
 
 RUN useradd -ms /bin/bash user
 
@@ -6,20 +6,19 @@ WORKDIR /app
 RUN chown user: /app
 RUN chmod u+w /app
 
-COPY requirements.txt /app/
-COPY *.py /app/
+RUN apt-get update && apt-get install -y git libsm6 libxext6 libxrender1
 
-RUN chmod a+x vesicle.py
+COPY requirements.txt /app/
+RUN python3 -m pip install --upgrade pip
+RUN python3 -m pip install -r requirements.txt
 
 COPY models/final.h5 /app/models/
+COPY models/mask_rcnn_coco.h5 /app/
 
-RUN apt-get update
-RUN apt-get install -y git
-RUN apt-get install -y libsm6 libxext6 libxrender1
-
-RUN pip install -r requirements.txt
+COPY *.py /app/
+RUN chmod a+x vesicle.py detector.py
 
 USER user
 
-ENTRYPOINT ["./vesicle.py"]
+ENTRYPOINT ["./detector.py"]
 
