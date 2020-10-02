@@ -68,7 +68,7 @@ class VesicleConfig(Config):
     NUM_CLASSES = 1 + 1  # Background + vesicle
 
     # Number of training steps per epoch
-    STEPS_PER_EPOCH = 138
+    STEPS_PER_EPOCH = 10
 
     # Skip detections with < 60% confidence
     DETECTION_MIN_CONFIDENCE = 0.6
@@ -180,6 +180,55 @@ class VesicleDataset(utils.Dataset):
             return info["path"]
         else:
             super(self.__class__, self).image_reference(image_id)
+
+
+class FRUDataset(VesicleDataset):
+    def load_vesicle(self, dataset_dir, subset):
+        """Load a subset of the Vesicles dataset.
+        dataset_dir: Root directory of the dataset.
+        subset: Subset to load: train or val
+        """
+        # Add classes. We have only one class to add.
+        self.add_class("vesicle", 1, "vesicle")
+
+        # Train or validation dataset?
+        assert subset in ['train', 'val', 'test']
+        dataset_dir = os.path.join(dataset_dir, subset)
+        annotation_path = os.path.join(dataset_dir, 'masks')
+
+        # Add images
+        for name in [file for file in os.listdir(dataset_dir) if 'tif' in file]:
+            idx, name = name.split('_')
+            image_path = os.path.join(dataset_dir, name)
+            mask_path = os.path.join(annotation_path, f'{idx}_seg_{name}')
+            img = skimage.io.imread(image_path)
+            height, width = img.shape[:2]
+
+            self.add_image(
+                "vesicle",
+                image_id=name,  # use file name as a unique image id
+                path=image_path,
+                width=width, height=height,
+                mask_path=mask_path)
+
+    def load_mask(self, image_id):
+        """Generate instance masks for an image.
+       Returns:
+        masks: A bool array of shape [height, width, instance count] with
+            one mask per instance.
+        class_ids: a 1D array of class IDs of the instance masks.
+        """
+        # If not a vesicle dataset image, delegate to parent class.
+        image_info = self.image_info[image_id]
+        if image_info["source"] != "vesicle":
+            return super(self.__class__, self).load_mask(image_id)
+
+        # Convert polygons to a bitmap mask of shape
+        # [height, width, instance_count]
+        info = self.image_info[image_id]
+        mask_path = info['mask_path']
+        mask = cv.imread(mask_path)
+        return get_bin_mask(mask)
 
 
 class BoardCallback(keras.callbacks.Callback):
@@ -313,6 +362,42 @@ def train(model, epochs=EPOCHS):
     # Validation dataset
     dataset_val = VesicleDataset()
     dataset_val.load_vesicle(args.dataset, "val")
+    dataset_val.prepare()
+
+    augmentation = iaa.SomeOf((0, None), [
+        iaa.Fliplr(0.5),
+        iaa.Flipud(0.5),
+        iaa.Affine(rotate=(-180, 180)),
+        iaa.Affine(scale=(0.9, 1.1)),
+    ])
+
+    inference_model = modellib.MaskRCNN(mode="inference", config=config,
+                                        model_dir=args.logs)
+    params = args.__dict__
+    params.update(config.__dict__)
+    neptune_callback = NeptuneCallback("neptunus/exosomes", params, model, inference_model, dataset_val)
+    tb_callback = TensorBoardCallback(model.log_dir, model, inference_model, dataset_val)
+
+    print("Training all network layers")
+    model.train(dataset_train, dataset_val,
+                learning_rate=config.LEARNING_RATE,
+                epochs=epochs,
+                augmentation=augmentation,
+                custom_callbacks=[neptune_callback, tb_callback, NeptuneMonitor()],
+                layers='all')
+
+
+def train_fru(model, epochs=EPOCHS):
+    """Train model on the FRU-Net data."""
+
+    # Training dataset.
+    dataset_train = FRUDataset()
+    dataset_train.load_vesicle(args.dataset, 'train')
+    dataset_train.prepare()
+
+    # Validation dataset
+    dataset_val = FRUDataset()
+    dataset_val.load_vesicle(args.dataset, 'val')
     dataset_val.prepare()
 
     augmentation = iaa.SomeOf((0, None), [
@@ -574,8 +659,13 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
+
+    def is_train(command):
+        return 'train' in args.command
+
+
     # Validate arguments
-    if args.command == "train":
+    if is_train(args.command):
         assert args.dataset, "Argument --dataset is required for training"
 
     print("Weights: ", args.weights)
@@ -584,7 +674,7 @@ if __name__ == '__main__':
     print("Epochs: ", args.epochs)
 
     # Configurations
-    if args.command == "train":
+    if is_train(args.command):
         config = VesicleConfig()
     else:
         class InferenceConfig(VesicleConfig):
@@ -598,7 +688,7 @@ if __name__ == '__main__':
     config.display()
 
     # Create model
-    if args.command == "train":
+    if is_train(args.command):
         model = modellib.MaskRCNN(mode="training", config=config,
                                   model_dir=args.logs)
     else:
@@ -634,6 +724,10 @@ if __name__ == '__main__':
     # Train or evaluate
     if args.command == "train":
         train(model, args.epochs)
+
+    if args.command == "train_fru":
+        train_fru(model, args.epochs)
+
     elif args.command == "evaluate":
         # Validation dataset
         dataset_val = VesicleDataset()
