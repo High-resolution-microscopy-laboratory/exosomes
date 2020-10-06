@@ -353,16 +353,16 @@ class NeptuneCallback(BoardCallback):
             neptune.log_metric(key, epoch, value)
 
 
-def train(model, epochs=EPOCHS):
+def train(model, epochs=EPOCHS, dataset=VesicleDataset):
     """Train the model."""
 
     # Training dataset.
-    dataset_train = VesicleDataset()
+    dataset_train = dataset()
     dataset_train.load_vesicle(args.dataset, "train")
     dataset_train.prepare()
 
     # Validation dataset
-    dataset_val = VesicleDataset()
+    dataset_val = dataset()
     dataset_val.load_vesicle(args.dataset, "val")
     dataset_val.prepare()
 
@@ -380,49 +380,22 @@ def train(model, epochs=EPOCHS):
     neptune_callback = NeptuneCallback("neptunus/exosomes", params, model, inference_model, dataset_val)
     tb_callback = TensorBoardCallback(model.log_dir, model, inference_model, dataset_val)
 
+    custom_callbacks = [tb_callback]
+    if args.neptune:
+        custom_callbacks += [neptune_callback, NeptuneMonitor()]
+
     print(f"Training {args.layers} network layers")
     model.train(dataset_train, dataset_val,
                 learning_rate=config.LEARNING_RATE,
                 epochs=epochs,
                 augmentation=augmentation,
-                custom_callbacks=[neptune_callback, tb_callback, NeptuneMonitor()],
+                custom_callbacks=custom_callbacks,
                 layers=args.layers)
 
 
 def train_fru(model, epochs=EPOCHS):
     """Train model on the FRU-Net data."""
-
-    # Training dataset.
-    dataset_train = FRUDataset()
-    dataset_train.load_vesicle(args.dataset, 'train')
-    dataset_train.prepare()
-
-    # Validation dataset
-    dataset_val = FRUDataset()
-    dataset_val.load_vesicle(args.dataset, 'val')
-    dataset_val.prepare()
-
-    augmentation = iaa.SomeOf((0, None), [
-        iaa.Fliplr(0.5),
-        iaa.Flipud(0.5),
-        iaa.Affine(rotate=(-180, 180)),
-        iaa.Affine(scale=(0.9, 1.1)),
-    ])
-
-    inference_model = modellib.MaskRCNN(mode="inference", config=config,
-                                        model_dir=args.logs)
-    params = args.__dict__
-    params.update(config.__dict__)
-    neptune_callback = NeptuneCallback("neptunus/exosomes", params, model, inference_model, dataset_val)
-    tb_callback = TensorBoardCallback(model.log_dir, model, inference_model, dataset_val)
-
-    print(f"Training {args.layers} network layers on FRU data")
-    model.train(dataset_train, dataset_val,
-                learning_rate=config.LEARNING_RATE,
-                epochs=epochs,
-                augmentation=augmentation,
-                custom_callbacks=[neptune_callback, tb_callback, NeptuneMonitor()],
-                layers=args.layers)
+    train(model, epochs=epochs, dataset=FRUDataset)
 
 
 def detect(model: modellib.MaskRCNN, dataset: modellib.utils.Dataset, limit=0):
@@ -658,6 +631,10 @@ if __name__ == '__main__':
               5+: Train Resnet stage 5 and up""")
     parser.add_argument('--out', required=False, type=str)
     parser.add_argument('--tag', required=False, type=str)
+    parser.add_argument('--neptune', required=False,
+                        type=bool,
+                        default=False,
+                        help='Enable logging to neptune.io')
 
     args = parser.parse_args()
 
