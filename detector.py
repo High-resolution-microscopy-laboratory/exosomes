@@ -198,9 +198,9 @@ class FRUDataset(VesicleDataset):
 
         # Add images
         for name in [file for file in os.listdir(dataset_dir) if 'tif' in file]:
-            idx, name = name.split('_')
+            idx, base_name = name.split('_')
             image_path = os.path.join(dataset_dir, name)
-            mask_path = os.path.join(annotation_path, f'{idx}_seg_{name}')
+            mask_path = os.path.join(annotation_path, f'{idx}_seg_{base_name}')
             img = skimage.io.imread(image_path)
             height, width = img.shape[:2]
 
@@ -223,12 +223,14 @@ class FRUDataset(VesicleDataset):
         if image_info["source"] != "vesicle":
             return super(self.__class__, self).load_mask(image_id)
 
-        # Convert polygons to a bitmap mask of shape
+        # Convert 16 bit mask to a bitmap mask of shape
         # [height, width, instance_count]
         info = self.image_info[image_id]
         mask_path = info['mask_path']
-        mask = cv.imread(mask_path)
-        return get_bin_mask(mask)
+        mask = cv.imread(mask_path, cv.IMREAD_GRAYSCALE)
+        bin_mask = get_bin_mask(mask)
+        n_instance = bin_mask.shape[-1]
+        return bin_mask, np.ones([n_instance], dtype=np.int32)
 
 
 class BoardCallback(keras.callbacks.Callback):
@@ -378,13 +380,13 @@ def train(model, epochs=EPOCHS):
     neptune_callback = NeptuneCallback("neptunus/exosomes", params, model, inference_model, dataset_val)
     tb_callback = TensorBoardCallback(model.log_dir, model, inference_model, dataset_val)
 
-    print("Training all network layers")
+    print(f"Training {args.layers} network layers")
     model.train(dataset_train, dataset_val,
                 learning_rate=config.LEARNING_RATE,
                 epochs=epochs,
                 augmentation=augmentation,
                 custom_callbacks=[neptune_callback, tb_callback, NeptuneMonitor()],
-                layers='all')
+                layers=args.layers)
 
 
 def train_fru(model, epochs=EPOCHS):
@@ -414,13 +416,13 @@ def train_fru(model, epochs=EPOCHS):
     neptune_callback = NeptuneCallback("neptunus/exosomes", params, model, inference_model, dataset_val)
     tb_callback = TensorBoardCallback(model.log_dir, model, inference_model, dataset_val)
 
-    print("Training all network layers")
+    print(f"Training {args.layers} network layers on FRU data")
     model.train(dataset_train, dataset_val,
                 learning_rate=config.LEARNING_RATE,
                 epochs=epochs,
                 augmentation=augmentation,
                 custom_callbacks=[neptune_callback, tb_callback, NeptuneMonitor()],
-                layers='all')
+                layers=args.layers)
 
 
 def detect(model: modellib.MaskRCNN, dataset: modellib.utils.Dataset, limit=0):
@@ -661,7 +663,7 @@ if __name__ == '__main__':
 
 
     def is_train(command):
-        return 'train' in args.command
+        return 'train' in command
 
 
     # Validate arguments
