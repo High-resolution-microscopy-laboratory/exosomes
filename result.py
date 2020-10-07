@@ -127,9 +127,7 @@ def visualize_params(img, params_list):
         # text
         y1, x1, y2, x2 = params['box']
         text = '{id} {score:.2f}'.format(**params)
-        font = cv.FONT_HERSHEY_PLAIN
-        cv.putText(img, text, (x1 + 1, y1 + 1), font, scale, (0, 0, 0), 2 * t, cv.LINE_AA)
-        cv.putText(img, text, (x1, y1), font, scale, (255, 255, 255), t, cv.LINE_AA)
+        utils.put_text(img, text, x1, y1)
 
 
 def visualize_all_params(images_dict: utils.Images, params_dict):

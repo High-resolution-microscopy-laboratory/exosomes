@@ -380,12 +380,34 @@ def get_contours(result: dict) -> list:
     return contours
 
 
-def visualize_result(img, result: dict):
+def put_text(img, text, x, y):
     k = max(img.shape) / 1024
     t = round(k)
-    color = (0, 255, 0)
-    masks = result['masks']
+    scale = k * 1.2
+    font = cv.FONT_HERSHEY_PLAIN
+    cv.putText(img, text, (x + 1, y + 1), font, scale, (0, 0, 0), 2 * t, cv.LINE_AA)
+    cv.putText(img, text, (x, y), font, scale, (255, 255, 255), t, cv.LINE_AA)
+
+
+def put_scores(img, result):
+    for box, score in zip(result['rois'], result['scores']):
+        y, x, _, _ = box
+        put_text(img, f'{score:.2f}', x, y)
+
+
+def visualize_masks_contours(img, masks, color):
+    k = max(img.shape) / 1024
+    t = round(k)
     for i in range(masks.shape[2]):
         mask = masks[:, :, i].astype(np.uint8)
         _, contours, _ = cv.findContours(mask, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_TC89_KCOS)
         cv.drawContours(img, contours, -1, color, t, cv.LINE_AA)
+
+
+def visualize_result(img, result: dict, gt_masks=None, scores=False):
+    masks = result['masks']
+    if gt_masks is not None:
+        visualize_masks_contours(img, gt_masks, (0, 0, 255))
+    visualize_masks_contours(img, masks, (0, 255, 0))
+    if scores:
+        put_scores(img, result=result)
