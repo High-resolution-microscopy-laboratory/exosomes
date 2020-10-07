@@ -454,8 +454,8 @@ def detect(model: modellib.MaskRCNN, dataset: modellib.utils.Dataset, limit=0):
 def get_bin_mask(mask):
     n = np.max(mask)
     bin_mask = np.zeros((*mask.shape[:2], n), dtype=np.bool)
-    for i in range(1, np.max(mask)):
-        bin_mask[:, :, i] = mask == i
+    for i in range(1, n + 1):
+        bin_mask[:, :, i - 1] = mask == i
     return bin_mask
 
 
