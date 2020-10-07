@@ -630,6 +630,10 @@ if __name__ == '__main__':
                         type=int,
                         default=0,
                         help='Number of evaluation images')
+    parser.add_argument('--learning-rate', required=False,
+                        type=float,
+                        default=0.001,
+                        help='Initial learning rate')
     parser.add_argument('--layers', required=False,
                         type=str,
                         default='all',
@@ -675,6 +679,7 @@ if __name__ == '__main__':
 
 
         config = InferenceConfig()
+    config.LEARNING_RATE = args.learning_rate
     config.display()
 
     # Create model
@@ -719,13 +724,21 @@ if __name__ == '__main__':
         train_fru(model, args.epochs)
 
     elif args.command == "evaluate":
-        # Validation dataset
+        # Evaluate
         dataset_val = VesicleDataset()
-        dataset_val.load_vesicle(args.dataset, 'test')
+        dataset_val.load_vesicle(args.dataset, 'val')
         dataset_val.prepare()
         n_img = len(dataset_val.image_ids) if not args.eval_limit else len(dataset_val.image_ids[:args.eval_limit])
         print(f'Running evaluation on {n_img} images.')
         evaluate(dataset_val, tag=args.tag, limit=args.eval_limit, out=args.out)
+    elif args.command == "evaluate_fru":
+        # Evaluate FRU-Net results
+        dataset_val = FRUDataset()
+        dataset_val.load_vesicle(args.dataset, 'test')
+        dataset_val.prepare()
+        n_img = len(dataset_val.image_ids) if not args.eval_limit else len(dataset_val.image_ids[:args.eval_limit])
+        print(f'Running evaluation on {n_img} images.')
+        evaluate_fru_net(dataset_val, tag=args.tag, limit=args.eval_limit, out=args.out)
     else:
         print("'{}' is not recognized. "
               "Use 'train'".format(args.command))
