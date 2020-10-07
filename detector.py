@@ -647,8 +647,7 @@ if __name__ == '__main__':
     parser.add_argument('--out', required=False, type=str)
     parser.add_argument('--tag', required=False, type=str)
     parser.add_argument('--neptune', required=False,
-                        type=bool,
-                        default=False,
+                        action='store_true',
                         help='Enable logging to neptune.io')
 
     args = parser.parse_args()
