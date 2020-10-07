@@ -101,7 +101,7 @@ class FRUConfig(VesicleConfig):
     NUM_CLASSES = 1 + 1  # Background + vesicle
 
     # Number of training steps per epoch
-    STEPS_PER_EPOCH = 64
+    STEPS_PER_EPOCH = 63
 
     # Skip detections with < 60% confidence
     DETECTION_MIN_CONFIDENCE = 0.6
@@ -322,7 +322,7 @@ class TensorBoardCallback(BoardCallback):
         for i, img in enumerate(images):
             if img.shape[2] != 3:
                 img = cv.cvtColor(img, cv.COLOR_GRAY2BGR)
-            visualize_result(img, results[i])
+            visualize_result(img, results[i], gt_masks[i], scores=True)
             _, buf = cv.imencode('.png', img)
             im_summary = tf.Summary.Image(encoded_image_string=buf.tobytes())
             summary_img.value.add(tag=f'img/{i}', image=im_summary)
@@ -376,7 +376,7 @@ class NeptuneCallback(BoardCallback):
         for i, img in enumerate(images):
             if img.shape[2] != 3:
                 img = cv.cvtColor(img, cv.COLOR_GRAY2BGR)
-            visualize_result(img, results[i])
+            visualize_result(img, results[i], gt_masks[i], scores=True)
             neptune.log_image(f'image_epoch_{epoch}', img[..., ::-1])
 
         # Metrics
