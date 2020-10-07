@@ -83,7 +83,40 @@ class VesicleConfig(Config):
         "rpn_bbox_loss": 1.,
         "mrcnn_class_loss": 1.,
         "mrcnn_bbox_loss": 1.,
-        "mrcnn_mask_loss": 0.2
+        "mrcnn_mask_loss": 1
+    }
+
+
+class FRUConfig(VesicleConfig):
+    """Configuration for training on the dataset.
+    Derives from the base Config class and overrides some values.
+    """
+    # Give the configuration a recognizable name
+    NAME = "vesicle"
+
+    # We use a GPU with 12GB memory, which can fit two images.
+    IMAGES_PER_GPU = 1
+
+    # Number of classes (including background)
+    NUM_CLASSES = 1 + 1  # Background + vesicle
+
+    # Number of training steps per epoch
+    STEPS_PER_EPOCH = 64
+
+    # Skip detections with < 60% confidence
+    DETECTION_MIN_CONFIDENCE = 0.6
+
+    # resnet 50 or resnet101
+    BACKBONE = "resnet50"
+
+    LEARNING_RATE = 0.001
+
+    LOSS_WEIGHTS = {
+        "rpn_class_loss": 1.,
+        "rpn_bbox_loss": 1.,
+        "mrcnn_class_loss": 1.,
+        "mrcnn_bbox_loss": 1.,
+        "mrcnn_mask_loss": 1.
     }
 
 
@@ -227,7 +260,7 @@ class FRUDataset(VesicleDataset):
         # [height, width, instance_count]
         info = self.image_info[image_id]
         mask_path = info['mask_path']
-        mask = cv.imread(mask_path, cv.IMREAD_GRAYSCALE)
+        mask = cv.imread(mask_path, cv.IMREAD_GRAYSCALE + cv.IMREAD_ANYDEPTH)
         bin_mask = get_bin_mask(mask)
         n_instance = bin_mask.shape[-1]
         return bin_mask, np.ones([n_instance], dtype=np.int32)
@@ -344,8 +377,6 @@ class NeptuneCallback(BoardCallback):
             if img.shape[2] != 3:
                 img = cv.cvtColor(img, cv.COLOR_GRAY2BGR)
             visualize_result(img, results[i])
-            # _, buf = cv.imencode('.png', img)
-            cv.imwrite(f'test_{i}.jpg', img)
             neptune.log_image(f'image_epoch_{epoch}', img[..., ::-1])
 
         # Metrics
@@ -654,7 +685,7 @@ if __name__ == '__main__':
 
     # Configurations
     if is_train(args.command):
-        config = VesicleConfig()
+        config = VesicleConfig() if args.command == 'train' else FRUConfig()
     else:
         class InferenceConfig(VesicleConfig):
             # Set batch size to 1 since we'll be running inference on
