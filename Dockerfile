@@ -8,9 +8,9 @@ RUN chmod u+w /app
 
 RUN apt-get update && apt-get install -y git libsm6 libxext6 libxrender1
 
-COPY requirements.txt /app/
+COPY train_requirements.txt /app/
 RUN python3 -m pip install --upgrade pip
-RUN python3 -m pip install -r requirements.txt
+RUN python3 -m pip install -r train_requirements.txt
 
 COPY models/final.h5 /app/models/
 COPY models/mask_rcnn_coco.h5 /app/

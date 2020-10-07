@@ -1,0 +1,20 @@
+-i https://pypi.org/simple
+-e git+https://github.com/matterport/Mask_RCNN.git@3deaec5d902d16e1daf56b62d5971d428dc920bc#egg=mask-rcnn
+imagecodecs==2020.5.30
+imgaug==0.4.0
+keras-applications==1.0.8
+keras-preprocessing==1.1.2
+keras==2.1.0
+tensorflow-estimator==1.15.1
+tensorflow-gpu==1.15.2
+opencv-python==3.4.9.33
+pandas==1.1.0
+pillow==7.2.0
+scikit-image==0.17.2
+tensorboard==1.15.0
+xmltodict==0.12.0
+
+neptune-client==0.4.120
+neptune-contrib
+boto3==1.15.6
+psutil
