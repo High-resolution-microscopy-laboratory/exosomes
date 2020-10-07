@@ -9,6 +9,7 @@ import tensorflow as tf
 import detector
 import utils
 from result import ResultWrapper
+import time
 
 DEFAULT_FILE_NAME = 'via_region_data.json'
 DETECTOR_FILE_NAME = 'via_region_data_detect.json'
@@ -52,7 +53,13 @@ def detect_from_dir(input_dir, output_dir, model: modellib.MaskRCNN):
     os.makedirs(prepared_images_dir, exist_ok=True)
     utils.prepare_images(input_dir, prepared_images_dir)
     images = utils.load_images(prepared_images_dir)
+    begin = time.time()
     detect(images, output_dir, model)
+    end = time.time()
+    n = len(images)
+    duration = end - begin
+    print(f'Processed {n} in {duration} sec')
+    print(f'{duration / n} sec per image')
     utils.write_images(images, os.path.join(output_dir, 'vis'))
 
 
@@ -90,6 +97,7 @@ if __name__ == '__main__':
         if args.input_dir and args.output_dir:
             model = load_model(args.weights)
             detect_from_dir(args.input_dir, args.output_dir, model)
+
         else:
             print('Arguments input_dir and output_dir are required for detection')
 
