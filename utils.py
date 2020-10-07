@@ -395,19 +395,33 @@ def put_scores(img, result):
         put_text(img, f'{score:.2f}', x, y)
 
 
-def visualize_masks_contours(img, masks, color):
+def draw_masks_contours(img, masks, color):
     k = max(img.shape) / 1024
     t = round(k)
-    for i in range(masks.shape[2]):
-        mask = masks[:, :, i].astype(np.uint8)
-        _, contours, _ = cv.findContours(mask, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_TC89_KCOS)
+    n = masks.shape[2]
+    for i in range(n):
+        mask = masks[:, :, i]
+        _, contours, _ = cv.findContours(mask.copy().astype(np.uint8), cv.RETR_EXTERNAL, cv.CHAIN_APPROX_TC89_KCOS)
         cv.drawContours(img, contours, -1, color, t, cv.LINE_AA)
 
 
 def visualize_result(img, result: dict, gt_masks=None, scores=False):
     masks = result['masks']
     if gt_masks is not None:
-        visualize_masks_contours(img, gt_masks, (0, 0, 255))
-    visualize_masks_contours(img, masks, (0, 255, 0))
+        draw_masks_contours(img, gt_masks, (0, 0, 255))
+    draw_masks_contours(img, masks, (0, 255, 0))
     if scores:
         put_scores(img, result=result)
+
+
+def get_bin_mask(mask):
+    n = np.max(mask)
+    bin_mask = np.zeros((*mask.shape[:2], n), dtype=np.bool)
+    for i in range(1, n + 1):
+        bin_mask[:, :, i - 1] = mask == i
+    return bin_mask
+
+
+def visualise(img, mask_gt, mask_det):
+    draw_masks_contours(img, mask_gt, (0, 255, 0))
+    draw_masks_contours(img, mask_det, (0, 0, 255))

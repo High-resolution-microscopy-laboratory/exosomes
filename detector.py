@@ -29,7 +29,7 @@ import neptune
 from neptunecontrib.versioning.data import log_data_version
 from neptunecontrib.monitoring.keras import NeptuneMonitor
 
-from utils import poly_from_str, roundness, get_contours, visualize_result
+from utils import poly_from_str, roundness, get_contours, visualize_result, get_bin_mask, draw_masks_contours
 
 # Root directory of the project
 ROOT_DIR = os.path.abspath("./")
@@ -451,27 +451,6 @@ def detect(model: modellib.MaskRCNN, dataset: modellib.utils.Dataset, limit=0):
     return images, gt_boxes, gt_class_ids, gt_masks, results
 
 
-def get_bin_mask(mask):
-    n = np.max(mask)
-    bin_mask = np.zeros((*mask.shape[:2], n), dtype=np.bool)
-    for i in range(1, n + 1):
-        bin_mask[:, :, i - 1] = mask == i
-    return bin_mask
-
-
-def draw_mask_cnts(img, masks, color):
-    n = masks.shape[2]
-    for i in range(n):
-        mask = masks[:, :, i]
-        _, contours, _ = cv.findContours(mask.copy().astype(np.uint8), cv.RETR_EXTERNAL, cv.CHAIN_APPROX_TC89_KCOS)
-        cv.drawContours(img, contours, -1, color, 1, cv.LINE_AA)
-
-
-def visualise(img, mask_gt, mask_det):
-    draw_mask_cnts(img, mask_gt, (0, 255, 0))
-    draw_mask_cnts(img, mask_det, (0, 0, 255))
-
-
 def get_fru_net_results(results_dir: str, dataset: VesicleDataset):
     WIN_NAME = 'img'
     cv.namedWindow(WIN_NAME)
@@ -511,7 +490,8 @@ def get_fru_net_results(results_dir: str, dataset: VesicleDataset):
         images.append(image)
 
         vis_img = image.copy()
-        visualise(vis_img, gt_mask, mask)
+        draw_masks_contours(vis_img, gt_mask, (0, 255, 0))
+        draw_masks_contours(vis_img, mask, (0, 0, 255))
         cv.imshow(WIN_NAME, vis_img)
         cv.waitKey(0)
 
