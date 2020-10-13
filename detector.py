@@ -19,6 +19,7 @@ from typing import Tuple, Iterator
 
 import cv2 as cv
 import keras
+from keras import backend as K
 import numpy as np
 import skimage.draw
 import skimage.io
@@ -28,8 +29,10 @@ from imgaug import augmenters as iaa
 import neptune
 from neptunecontrib.versioning.data import log_data_version
 from neptunecontrib.monitoring.keras import NeptuneMonitor
+import tensorflow
 
 from utils import poly_from_str, roundness, get_contours, visualize_result, get_bin_mask, draw_masks_contours
+import random
 
 # Root directory of the project
 ROOT_DIR = os.path.abspath("./")
@@ -46,7 +49,13 @@ COCO_WEIGHTS_PATH = os.path.join(ROOT_DIR, "mask_rcnn_coco.h5")
 # through the command line argument --logs
 DEFAULT_LOGS_DIR = os.path.join(ROOT_DIR, "logs")
 
-EPOCHS = 2
+EPOCHS = 30
+
+
+def set_deterministic(seed=42):
+    np.random.seed(seed)
+    random.seed(seed)
+    tensorflow.set_random_seed(seed)
 
 
 ############################################################
@@ -68,7 +77,7 @@ class VesicleConfig(Config):
     NUM_CLASSES = 1 + 1  # Background + vesicle
 
     # Number of training steps per epoch
-    STEPS_PER_EPOCH = 10
+    STEPS_PER_EPOCH = 138
 
     # Skip detections with < 60% confidence
     DETECTION_MIN_CONFIDENCE = 0.6
@@ -408,20 +417,25 @@ def train(model, epochs=EPOCHS, dataset=VesicleDataset):
                                         model_dir=args.logs)
     params = args.__dict__
     params.update(config.__dict__)
+    callbacks = [
+        keras.callbacks.TensorBoard(log_dir=model.log_dir,
+                                    histogram_freq=0, write_graph=True, write_images=False),
+        keras.callbacks.ModelCheckpoint(model.checkpoint_path,
+                                        verbose=0, save_weights_only=True),
+        TensorBoardCallback(model.log_dir, model, inference_model, dataset_val)
+    ]
     neptune_callback = NeptuneCallback("neptunus/exosomes", params, model, inference_model, dataset_val)
-    tb_callback = TensorBoardCallback(model.log_dir, model, inference_model, dataset_val)
-
-    custom_callbacks = [tb_callback]
     if args.neptune:
-        custom_callbacks += [neptune_callback, NeptuneMonitor()]
+        callbacks += [neptune_callback, NeptuneMonitor()]
 
     print(f"Training {args.layers} network layers")
     model.train(dataset_train, dataset_val,
                 learning_rate=config.LEARNING_RATE,
                 epochs=epochs,
                 augmentation=augmentation,
-                custom_callbacks=custom_callbacks,
-                layers=args.layers)
+                custom_callbacks=callbacks,
+                layers=args.layers,
+                override_callbacks=True)
 
 
 def train_fru(model, epochs=EPOCHS):
@@ -649,8 +663,14 @@ if __name__ == '__main__':
     parser.add_argument('--neptune', required=False,
                         action='store_true',
                         help='Enable logging to neptune.io')
+    parser.add_argument('--eval-every', required=False,
+                        type=int,
+                        default=2,
+                        help='Evaluate and save model every N epochs')
 
     args = parser.parse_args()
+
+    set_deterministic(42)
 
 
     def is_train(command):
@@ -679,6 +699,7 @@ if __name__ == '__main__':
 
         config = InferenceConfig()
     config.LEARNING_RATE = args.learning_rate
+    config.STEPS_PER_EPOCH *= args.eval_every
     config.display()
 
     # Create model
