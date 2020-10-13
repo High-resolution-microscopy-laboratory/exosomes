@@ -15,11 +15,10 @@ import os
 import pprint
 import sys
 from collections import OrderedDict
-from typing import Tuple, Iterator
+from typing import Tuple, List
 
 import cv2 as cv
 import keras
-from keras import backend as K
 import numpy as np
 import skimage.draw
 import skimage.io
@@ -94,6 +93,11 @@ class VesicleConfig(Config):
         "mrcnn_bbox_loss": 1.,
         "mrcnn_mask_loss": 1
     }
+
+    def get_dict(self):
+        """Return dict with configuration values."""
+        return {a: getattr(self, a) for a in dir(self)
+                if not a.startswith("__") and not callable(getattr(self, a))}
 
 
 class FRUConfig(VesicleConfig):
@@ -364,6 +368,9 @@ class NeptuneCallback(BoardCallback):
         neptune.init(project_name)
         neptune.create_experiment(project_name, params=params, upload_source_files=['detector.py', 'utils.py'])
         log_data_version(args.dataset)
+        self.best_epoch = 0
+        self.best_mAP = 0
+        self.best_model = None
 
     def _load_weights_for_model(self):
         last_weights_path = self.train_model.find_last()
@@ -371,10 +378,11 @@ class NeptuneCallback(BoardCallback):
             last_weights_path))
         self.inference_model.load_weights(last_weights_path,
                                           by_name=True)
+        return last_weights_path
 
     def on_epoch_end(self, epoch, logs=None):
         self._verbose_print("Calculating metrics...")
-        self._load_weights_for_model()
+        last_weights_path = self._load_weights_for_model()
 
         images, gt_boxes, gt_class_ids, gt_masks, results = detect(self.inference_model, self.dataset)
         metrics = compute_metrics(images, gt_boxes, gt_class_ids, gt_masks, results)
@@ -391,6 +399,19 @@ class NeptuneCallback(BoardCallback):
         # Metrics
         for key, value in metrics:
             neptune.log_metric(key, epoch, value)
+
+        # Save best result
+        name, mAP = metrics[0]
+        if mAP > self.best_mAP:
+            self.best_mAP = mAP
+            self.best_epoch = epoch
+            self.best_model = last_weights_path
+
+    def on_train_end(self, logs=None):
+        if self.best_model:
+            print(f'Sending model {self.best_model} with mAP={self.best_mAP}')
+            neptune.log_metric('best mAP', self.best_mAP)
+            neptune.log_artifact(self.best_model)
 
 
 def train(model, epochs=EPOCHS, dataset=VesicleDataset):
@@ -416,17 +437,19 @@ def train(model, epochs=EPOCHS, dataset=VesicleDataset):
     inference_model = modellib.MaskRCNN(mode="inference", config=config,
                                         model_dir=args.logs)
     params = args.__dict__
-    params.update(config.__dict__)
+    params.update(config.get_dict())
     callbacks = [
         keras.callbacks.TensorBoard(log_dir=model.log_dir,
                                     histogram_freq=0, write_graph=True, write_images=False),
         keras.callbacks.ModelCheckpoint(model.checkpoint_path,
                                         verbose=0, save_weights_only=True),
-        TensorBoardCallback(model.log_dir, model, inference_model, dataset_val)
     ]
-    neptune_callback = NeptuneCallback("neptunus/exosomes", params, model, inference_model, dataset_val)
     if args.neptune:
+        neptune_callback = NeptuneCallback("neptunus/exosomes", params, model, inference_model, dataset_val)
         callbacks += [neptune_callback, NeptuneMonitor()]
+
+    if args.tensorboard:
+        callbacks.append(TensorBoardCallback(model.log_dir, model, inference_model, dataset_val))
 
     print(f"Training {args.layers} network layers")
     model.train(dataset_train, dataset_val,
@@ -521,7 +544,7 @@ def get_fru_net_results(results_dir: str, dataset: VesicleDataset):
 
 
 # noinspection PyPep8Naming
-def compute_metrics(images, gt_boxes, gt_class_ids, gt_masks, results_list) -> Iterator[Tuple]:
+def compute_metrics(images, gt_boxes, gt_class_ids, gt_masks, results_list) -> List[Tuple]:
     mAPs = []
     APs_75 = []
     APs_5 = []
@@ -561,9 +584,8 @@ def compute_metrics(images, gt_boxes, gt_class_ids, gt_masks, results_list) -> I
              '4. Recall @ IoU=75', '5. Recall @ IoU=50', '6. Roundness']
     values_list = [mAPs, APs_75, APs_5, recalls_75, recalls_5, roundness_list]
     avg_values = [np.mean(values) for values in values_list]
-    print(list(zip(names, avg_values)))
 
-    return zip(names, avg_values)
+    return list(zip(names, avg_values))
 
 
 def f_score(precision, recall):
@@ -663,6 +685,9 @@ if __name__ == '__main__':
     parser.add_argument('--neptune', required=False,
                         action='store_true',
                         help='Enable logging to neptune.io')
+    parser.add_argument('--tensorboard', required=False,
+                        action='store_true',
+                        help='Enable logging to Tensorboard')
     parser.add_argument('--eval-every', required=False,
                         type=int,
                         default=2,
