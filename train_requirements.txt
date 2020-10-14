@@ -1,5 +1,5 @@
 -i https://pypi.org/simple
--e git+https://github.com/matterport/Mask_RCNN.git@3deaec5d902d16e1daf56b62d5971d428dc920bc#egg=mask-rcnn
+-e git+https://github.com/vergilijus/Mask_RCNN.git@65106d71a3344c4d73de5e6111c720ab6218e983#egg=mask-rcnn
 imagecodecs==2020.5.30
 imgaug==0.4.0
 keras-applications==1.0.8
