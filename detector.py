@@ -632,7 +632,7 @@ if __name__ == '__main__':
         description='Train Mask R-CNN to detect vesicles.')
     parser.add_argument("command",
                         metavar="<command>",
-                        help="'train'")
+                        help="On of: 'train', 'train_fru', 'evaluate', 'evaluate_fru'")
     parser.add_argument('--dataset', required=False,
                         metavar="/path/to/vesicles/dataset/",
                         help='Directory of the Vesicle dataset')
