@@ -11,7 +11,6 @@ import pandas as pd
 
 DATA_DIR = 'data/dataset'
 SUBSETS = ['train', 'val', 'test']
-# SUBSETS = ['val']
 SHOWIMG = False
 WIN_NAME = 'mask'
 RESIZE = 1024
