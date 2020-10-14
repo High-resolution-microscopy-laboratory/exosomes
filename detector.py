@@ -94,6 +94,8 @@ class VesicleConfig(Config):
         "mrcnn_mask_loss": 1
     }
 
+    MEAN_PIXEL = np.array([148.4] * 3)
+
     def get_dict(self):
         """Return dict with configuration values."""
         return {a: getattr(self, a) for a in dir(self)
@@ -101,28 +103,11 @@ class VesicleConfig(Config):
 
 
 class FRUConfig(VesicleConfig):
-    """Configuration for training on the dataset.
-    Derives from the base Config class and overrides some values.
-    """
-    # Give the configuration a recognizable name
-    NAME = "vesicle"
-
-    # We use a GPU with 12GB memory, which can fit two images.
-    IMAGES_PER_GPU = 1
-
-    # Number of classes (including background)
-    NUM_CLASSES = 1 + 1  # Background + vesicle
-
     # Number of training steps per epoch
     STEPS_PER_EPOCH = 63
 
-    # Skip detections with < 60% confidence
-    DETECTION_MIN_CONFIDENCE = 0.6
-
     # resnet 50 or resnet101
     BACKBONE = "resnet50"
-
-    LEARNING_RATE = 0.001
 
     LOSS_WEIGHTS = {
         "rpn_class_loss": 1.,
@@ -131,6 +116,8 @@ class FRUConfig(VesicleConfig):
         "mrcnn_bbox_loss": 1.,
         "mrcnn_mask_loss": 1.
     }
+
+    MEAN_PIXEL = np.array([129.4] * 3)
 
 
 class VesicleGrayConfig(VesicleConfig):
@@ -151,9 +138,7 @@ class VesicleInferenceConfig(VesicleConfig):
 class VesicleDataset(utils.Dataset):
     def load_image(self, image_id):
         img = cv.imread(self.image_info[image_id]['path'], cv.IMREAD_COLOR + cv.IMREAD_ANYDEPTH)
-        if img.dtype is np.dtype('uint16'):
-            img = cv.normalize(img, img, 0, 255, cv.NORM_MINMAX, dtype=cv.CV_8U)
-        return img
+        return cv.normalize(img, img, 0, 255, cv.NORM_MINMAX, dtype=cv.CV_8U)
 
     def load_vesicle(self, dataset_dir, subset):
         """Load a subset of the Vesicles dataset.
@@ -431,7 +416,7 @@ def train(model, epochs=EPOCHS, dataset=VesicleDataset):
         iaa.Fliplr(0.5),
         iaa.Flipud(0.5),
         iaa.Affine(rotate=(-180, 180)),
-        iaa.Affine(scale=(0.9, 1.1)),
+        iaa.Affine(scale=(0.9, 1.11)),
     ])
 
     inference_model = modellib.MaskRCNN(mode="inference", config=config,
