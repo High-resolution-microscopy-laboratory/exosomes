@@ -393,6 +393,9 @@ class NeptuneCallback(BoardCallback):
             self.best_model = last_weights_path
 
     def on_train_end(self, logs=None):
+        self.save_best_model()
+
+    def save_best_model(self):
         if self.best_model:
             print(f'Sending model {self.best_model} with mAP={self.best_mAP}')
             neptune.log_metric('best mAP', self.best_mAP)
@@ -429,21 +432,25 @@ def train(model, epochs=EPOCHS, dataset=VesicleDataset):
         keras.callbacks.ModelCheckpoint(model.checkpoint_path,
                                         verbose=0, save_weights_only=True),
     ]
+    neptune_callback = NeptuneCallback("neptunus/exosomes", params, model, inference_model, dataset_val)
     if args.neptune:
-        neptune_callback = NeptuneCallback("neptunus/exosomes", params, model, inference_model, dataset_val)
         callbacks += [neptune_callback, NeptuneMonitor()]
 
     if args.tensorboard:
         callbacks.append(TensorBoardCallback(model.log_dir, model, inference_model, dataset_val))
 
     print(f"Training {args.layers} network layers")
-    model.train(dataset_train, dataset_val,
-                learning_rate=config.LEARNING_RATE,
-                epochs=epochs,
-                augmentation=augmentation,
-                custom_callbacks=callbacks,
-                layers=args.layers,
-                override_callbacks=True)
+    try:
+        model.train(dataset_train, dataset_val,
+                    learning_rate=config.LEARNING_RATE,
+                    epochs=epochs,
+                    augmentation=augmentation,
+                    custom_callbacks=callbacks,
+                    layers=args.layers,
+                    override_callbacks=True)
+    except KeyboardInterrupt:
+        if args.neptune:
+            neptune_callback.save_best_model()
 
 
 def train_fru(model, epochs=EPOCHS):
@@ -750,7 +757,7 @@ if __name__ == '__main__':
     if args.command == "train":
         train(model, args.epochs)
 
-    if args.command == "train_fru":
+    elif args.command == "train_fru":
         train_fru(model, args.epochs)
 
     elif args.command == "evaluate":
