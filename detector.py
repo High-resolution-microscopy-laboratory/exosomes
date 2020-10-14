@@ -106,9 +106,6 @@ class FRUConfig(VesicleConfig):
     # Number of training steps per epoch
     STEPS_PER_EPOCH = 63
 
-    # resnet 50 or resnet101
-    BACKBONE = "resnet50"
-
     LOSS_WEIGHTS = {
         "rpn_class_loss": 1.,
         "rpn_bbox_loss": 1.,
