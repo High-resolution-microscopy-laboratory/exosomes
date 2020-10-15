@@ -516,10 +516,12 @@ def get_fru_net_results(results_dir: str, dataset: VesicleDataset):
         images.append(image)
 
         vis_img = image.copy()
-        draw_masks_contours(vis_img, gt_mask, (0, 255, 0))
-        draw_masks_contours(vis_img, mask, (0, 0, 255))
-        cv.imshow(WIN_NAME, vis_img)
-        cv.waitKey(0)
+        draw_masks_contours(vis_img, gt_mask, (0, 0, 255))
+        draw_masks_contours(vis_img, mask, (0, 255, 0))
+        cv.setWindowTitle(WIN_NAME, img_name)
+        # cv.imshow(WIN_NAME, vis_img)
+        cv.imwrite(f'FRU-Net/{name}_frunet.png', vis_img)
+        # cv.waitKey(0)
 
         result = {
             'class_ids': class_ids,
@@ -608,7 +610,7 @@ def evaluate(dataset: VesicleDataset, tag='', limit=0, out=None):
 
 def evaluate_fru_net(dataset: VesicleDataset, tag='', limit=0, out=None):
     images, gt_boxes, gt_class_ids, gt_masks, results = get_fru_net_results(
-        '/home/ruslan/projects/FRU_processing/code/fru_test_no_bars_results', dataset)
+        '/home/ruslan/projects/FRU_processing/code/val_results', dataset)
     metrics = compute_metrics(images, gt_boxes, gt_class_ids, gt_masks, results)
     mAP, mAP_75, mAP_5, recall_75, recall_5, roundness = [m[1] for m in metrics]
     F1 = f_score(mAP_75, recall_75)
@@ -636,11 +638,11 @@ if __name__ == '__main__':
         description='Train Mask R-CNN to detect vesicles.')
     parser.add_argument("command",
                         metavar="<command>",
-                        help="On of: 'train', 'train_fru', 'evaluate', 'evaluate_fru'")
+                        help="One of: 'train', 'train_fru', 'evaluate', 'evaluate_fru'")
     parser.add_argument('--dataset', required=False,
                         metavar="/path/to/vesicles/dataset/",
                         help='Directory of the Vesicle dataset')
-    parser.add_argument('--weights', required=True,
+    parser.add_argument('--weights', required=False,
                         metavar="/path/to/weights.h5",
                         help="Path to weights .h5 file or 'coco'")
     parser.add_argument('--logs', required=False,
@@ -716,6 +718,16 @@ if __name__ == '__main__':
     config.STEPS_PER_EPOCH *= args.eval_every
     config.display()
 
+    if args.command == "evaluate_fru":
+        # Evaluate FRU-Net results
+        dataset_val = FRUDataset()
+        dataset_val.load_vesicle(args.dataset, 'val')
+        dataset_val.prepare()
+        n_img = len(dataset_val.image_ids) if not args.eval_limit else len(dataset_val.image_ids[:args.eval_limit])
+        print(f'Running evaluation on {n_img} images.')
+        evaluate_fru_net(dataset_val, tag=args.tag, limit=args.eval_limit, out=args.out)
+        exit()
+
     # Create model
     if is_train(args.command):
         model = modellib.MaskRCNN(mode="training", config=config,
@@ -765,14 +777,7 @@ if __name__ == '__main__':
         n_img = len(dataset_val.image_ids) if not args.eval_limit else len(dataset_val.image_ids[:args.eval_limit])
         print(f'Running evaluation on {n_img} images.')
         evaluate(dataset_val, tag=args.tag, limit=args.eval_limit, out=args.out)
-    elif args.command == "evaluate_fru":
-        # Evaluate FRU-Net results
-        dataset_val = FRUDataset()
-        dataset_val.load_vesicle(args.dataset, 'test')
-        dataset_val.prepare()
-        n_img = len(dataset_val.image_ids) if not args.eval_limit else len(dataset_val.image_ids[:args.eval_limit])
-        print(f'Running evaluation on {n_img} images.')
-        evaluate_fru_net(dataset_val, tag=args.tag, limit=args.eval_limit, out=args.out)
+
     else:
         print("'{}' is not recognized. "
               "Use 'train'".format(args.command))
