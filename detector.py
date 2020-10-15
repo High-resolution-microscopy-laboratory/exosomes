@@ -519,9 +519,8 @@ def get_fru_net_results(results_dir: str, dataset: VesicleDataset):
         draw_masks_contours(vis_img, gt_mask, (0, 0, 255))
         draw_masks_contours(vis_img, mask, (0, 255, 0))
         cv.setWindowTitle(WIN_NAME, img_name)
-        # cv.imshow(WIN_NAME, vis_img)
-        cv.imwrite(f'FRU-Net/{name}_frunet.png', vis_img)
-        # cv.waitKey(0)
+        cv.imshow(WIN_NAME, vis_img)
+        cv.waitKey(0)
 
         result = {
             'class_ids': class_ids,
