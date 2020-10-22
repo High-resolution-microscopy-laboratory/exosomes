@@ -13,37 +13,31 @@ Usage: import the module (see Jupyter notebooks for examples), or run from
 """
 import os
 import pprint
-import sys
+import random
 from collections import OrderedDict
 from typing import Tuple, List
 
 import cv2 as cv
 import keras
+import neptune
 import numpy as np
 import skimage.draw
 import skimage.io
+import tensorflow
 import tensorflow as tf
 import xmltodict
 from imgaug import augmenters as iaa
-import neptune
-from neptunecontrib.versioning.data import log_data_version
 from neptunecontrib.monitoring.keras import NeptuneMonitor
-import tensorflow
+from neptunecontrib.versioning.data import log_data_version
 from tqdm import tqdm
 
-from utils import poly_from_str, roundness, get_contours, visualize_result, get_bin_mask, draw_masks_contours, \
-    avg_roundness, f_score
-import random
-
-# Root directory of the project
-ROOT_DIR = os.path.abspath("./")
-
-# Import Mask RCNN
-sys.path.append(ROOT_DIR)  # To find local version of the library
-from mrcnn.config import Config
 from mrcnn import model as modellib, utils
+from mrcnn.config import Config
+from utils import poly_from_str, get_contours, visualize_result, get_bin_mask, draw_masks_contours, \
+    avg_roundness, area_filter
 
 # Path to trained weights file
+ROOT_DIR = os.path.abspath("./")
 COCO_WEIGHTS_PATH = os.path.join(ROOT_DIR, "mask_rcnn_coco.h5")
 
 # Directory to save logs and model checkpoints, if not provided
@@ -596,8 +590,11 @@ def combine_metrics(metrics, tag='', out=None):
             f.write(f'{tag}, {mAP:.3}, {mAP_75:.3}, {mAP_5:.3}, {recall_75:.3}, {recall_5:.3}\n')
 
 
-def evaluate(dataset: VesicleDataset, tag='', limit=0, out=None):
+def evaluate(dataset: VesicleDataset, tag='', limit=0, out=None, min_area=0, max_area=0):
     images, gt_boxes, gt_class_ids, gt_masks, results = detect(model, dataset, limit)
+    if min_area or max_area:
+        gt_boxes, gt_class_ids, gt_masks, results = area_filter(gt_boxes, gt_class_ids, gt_masks,
+                                                                results, min_area, max_area)
     metrics = compute_metrics(images, gt_boxes, gt_class_ids, gt_masks, results)
     combine_metrics(metrics, tag, out)
 
@@ -768,7 +765,7 @@ if __name__ == '__main__':
         dataset_val.prepare()
         n_img = len(dataset_val.image_ids) if not args.eval_limit else len(dataset_val.image_ids[:args.eval_limit])
         print(f'Running evaluation on {n_img} images.')
-        evaluate(dataset_val, tag=args.tag, limit=args.eval_limit, out=args.out)
+        evaluate(dataset_val, tag=args.tag, limit=args.eval_limit, out=args.out, min_area=0, max_area=10000)
 
     else:
         print("'{}' is not recognized. "

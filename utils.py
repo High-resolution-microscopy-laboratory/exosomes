@@ -1,11 +1,12 @@
-import cv2 as cv
-import os
 import json
-import numpy as np
-from pathlib import Path
-import shutil
-from typing import List, Dict
 import math
+import os
+import shutil
+from pathlib import Path
+from typing import List, Dict
+
+import cv2 as cv
+import numpy as np
 
 Images = Dict[str, np.ndarray]
 
@@ -444,6 +445,30 @@ def get_cnt_from_mask(mask):
     return contours[0]
 
 
+def bin_mask_to_list(bin_mask):
+    return [bin_mask[:, :, i] for i in range(bin_mask.shape[2])]
+
+
 def mask_area(mask) -> float:
     return cv.contourArea(get_cnt_from_mask(mask))
 
+
+def area_filter(gt_boxes, gt_class_ids, gt_masks, results, min_area, max_area):
+    new_boxes, new_classes, new_masks, new_results = [], [], [], []
+    for img_boxes, img_classes, img_masks, res in zip(gt_boxes, gt_class_ids, gt_masks, results):
+        # Filter GT
+        gt_index = [min_area < mask_area(mask) < max_area for mask in bin_mask_to_list(img_masks)]
+        new_boxes.append(img_boxes[gt_index])
+        new_classes.append(img_classes[gt_index])
+        new_masks.append(img_masks[:, :, gt_index])
+
+        # Filter result
+        res_index = [min_area < mask_area(mask) < max_area for mask in bin_mask_to_list(res['masks'])]
+        new_results.append({
+            'rois': res['rois'][res_index],
+            'class_ids': res['class_ids'][res_index],
+            'scores': res['scores'][res_index],
+            'masks': res['masks'][:, :, res_index]
+        })
+
+    return new_boxes, new_classes, new_masks, new_results
