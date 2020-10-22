@@ -425,3 +425,25 @@ def get_bin_mask(mask):
 def visualise(img, mask_gt, mask_det):
     draw_masks_contours(img, mask_gt, (0, 255, 0))
     draw_masks_contours(img, mask_det, (0, 0, 255))
+
+
+def f_score(precision, recall):
+    return 2 * precision * recall / (precision + recall)
+
+
+def avg_roundness(contours) -> float:
+    if len(contours) > 0:
+        return sum([roundness(cnt) for cnt in contours]) / len(contours)
+    else:
+        return 0
+
+
+def get_cnt_from_mask(mask):
+    mask = mask.astype(np.uint8)
+    _, contours, _ = cv.findContours(mask, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_TC89_KCOS)
+    return contours[0]
+
+
+def mask_area(mask) -> float:
+    return cv.contourArea(get_cnt_from_mask(mask))
+
