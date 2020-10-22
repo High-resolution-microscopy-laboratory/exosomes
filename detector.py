@@ -29,8 +29,10 @@ import neptune
 from neptunecontrib.versioning.data import log_data_version
 from neptunecontrib.monitoring.keras import NeptuneMonitor
 import tensorflow
+from tqdm import tqdm
 
-from utils import poly_from_str, roundness, get_contours, visualize_result, get_bin_mask, draw_masks_contours
+from utils import poly_from_str, roundness, get_contours, visualize_result, get_bin_mask, draw_masks_contours, \
+    avg_roundness, f_score
 import random
 
 # Root directory of the project
@@ -103,6 +105,8 @@ class VesicleConfig(Config):
 
 
 class FRUConfig(VesicleConfig):
+    IMAGE_MIN_DIM = 0
+    IMAGE_MAX_DIM = 1024
     # Number of training steps per epoch
     STEPS_PER_EPOCH = 63
 
@@ -111,7 +115,7 @@ class FRUConfig(VesicleConfig):
         "rpn_bbox_loss": 1.,
         "mrcnn_class_loss": 1.,
         "mrcnn_bbox_loss": 1.,
-        "mrcnn_mask_loss": 1.
+        "mrcnn_mask_loss": 0.2
     }
 
     MEAN_PIXEL = np.array([129.4] * 3)
@@ -462,7 +466,7 @@ def detect(model: modellib.MaskRCNN, dataset: modellib.utils.Dataset, limit=0):
     results = []
     images = []
     end = limit if limit != 0 else len(dataset.image_ids)
-    for image_id in dataset.image_ids[:end]:
+    for image_id in tqdm(dataset.image_ids[:end]):
         image, image_meta, gt_class_id, gt_bbox, gt_mask = \
             modellib.load_image_gt(dataset, config,
                                    image_id, use_mini_mask=False)
@@ -578,51 +582,30 @@ def compute_metrics(images, gt_boxes, gt_class_ids, gt_masks, results_list) -> L
     return list(zip(names, avg_values))
 
 
-def f_score(precision, recall):
-    return 2 * precision * recall / (precision + recall)
-
-
-def avg_roundness(contours) -> float:
-    if len(contours) > 0:
-        return sum([roundness(cnt) for cnt in contours]) / len(contours)
-    else:
-        return 0
-
-
 # noinspection PyPep8Naming
+def combine_metrics(metrics, tag='', out=None):
+    mAP, mAP_75, mAP_5, recall_75, recall_5, roundness = [m[1] for m in metrics]
+    print(f'   mAP @ IoU Rng :\t{mAP:.3}')
+    print(f'    mAP @ IoU=75 :\t{mAP_75:.3}')
+    print(f'    mAP @ IoU=50 :\t{mAP_5:.3}')
+    print(f' Recall @ IoU=75 :\t{recall_75:.3}')
+    print(f' Recall @ IoU=50 :\t{recall_5:.3}')
+    print(f'       Roundness :\t{roundness:.3}')
+    if out:
+        with open(out, 'a') as f:
+            f.write(f'{tag}, {mAP:.3}, {mAP_75:.3}, {mAP_5:.3}, {recall_75:.3}, {recall_5:.3}\n')
+
+
 def evaluate(dataset: VesicleDataset, tag='', limit=0, out=None):
     images, gt_boxes, gt_class_ids, gt_masks, results = detect(model, dataset, limit)
     metrics = compute_metrics(images, gt_boxes, gt_class_ids, gt_masks, results)
-    mAP, mAP_75, mAP_5, recall_75, recall_5, roundness = [m[1] for m in metrics]
-    F1 = f_score(mAP_75, recall_75)
-    print(f'   mAP @ IoU Rng :\t{mAP:.3}')
-    print(f'    mAP @ IoU=75 :\t{mAP_75:.3}')
-    print(f'    mAP @ IoU=50 :\t{mAP_5:.3}')
-    print(f' Recall @ IoU=75 :\t{recall_75:.3}')
-    print(f' Recall @ IoU=50 :\t{recall_5:.3}')
-    print(f'F Score @ IoU=75 :\t{F1:.3}')
-    print(f'       Roundness :\t{roundness:.3}')
-    if out:
-        with open(out, 'a') as f:
-            f.write(f'{tag}, {mAP:.3}, {mAP_75:.3}, {mAP_5:.3}, {recall_75:.3}, {recall_5:.3}, {F1:.3}\n')
+    combine_metrics(metrics, tag, out)
 
 
-def evaluate_fru_net(dataset: VesicleDataset, tag='', limit=0, out=None):
-    images, gt_boxes, gt_class_ids, gt_masks, results = get_fru_net_results(
-        '/home/ruslan/projects/FRU_processing/code/val_results', dataset)
+def evaluate_fru_net(dataset: VesicleDataset, result_dir, tag='', limit=0, out=None, ):
+    images, gt_boxes, gt_class_ids, gt_masks, results = get_fru_net_results(result_dir, dataset)
     metrics = compute_metrics(images, gt_boxes, gt_class_ids, gt_masks, results)
-    mAP, mAP_75, mAP_5, recall_75, recall_5, roundness = [m[1] for m in metrics]
-    F1 = f_score(mAP_75, recall_75)
-    print(f'   mAP @ IoU Rng :\t{mAP:.3}')
-    print(f'    mAP @ IoU=75 :\t{mAP_75:.3}')
-    print(f'    mAP @ IoU=50 :\t{mAP_5:.3}')
-    print(f' Recall @ IoU=75 :\t{recall_75:.3}')
-    print(f' Recall @ IoU=50 :\t{recall_5:.3}')
-    print(f'F Score @ IoU=75 :\t{F1:.3}')
-    print(f'       Roundness :\t{roundness:.3}')
-    if out:
-        with open(out, 'a') as f:
-            f.write(f'{tag}, {mAP:.3}, {mAP_75:.3}, {mAP_5:.3}, {recall_75:.3}, {recall_5:.3}, {F1:.3}\n')
+    combine_metrics(metrics, tag, out)
 
 
 ############################################################
@@ -682,6 +665,13 @@ if __name__ == '__main__':
                         type=int,
                         default=2,
                         help='Evaluate and save model every N epochs')
+    parser.add_argument('--subset', required=False,
+                        type=str,
+                        default='val',
+                        help='Subset of data for evaluation "val" or "train"')
+    parser.add_argument('--result-dir', required=False,
+                        type=str,
+                        help='Path to directory with FRU-Net results for evaluation')
 
     args = parser.parse_args()
 
@@ -719,12 +709,15 @@ if __name__ == '__main__':
 
     if args.command == "evaluate_fru":
         # Evaluate FRU-Net results
-        dataset_val = FRUDataset()
-        dataset_val.load_vesicle(args.dataset, 'val')
+        dataset_val = VesicleDataset()
+        dataset_val.load_vesicle(args.dataset, args.subset)
         dataset_val.prepare()
         n_img = len(dataset_val.image_ids) if not args.eval_limit else len(dataset_val.image_ids[:args.eval_limit])
         print(f'Running evaluation on {n_img} images.')
-        evaluate_fru_net(dataset_val, tag=args.tag, limit=args.eval_limit, out=args.out)
+        if not args.result_dir:
+            print('Argument --result-dir is required for evaluation')
+            exit()
+        evaluate_fru_net(dataset_val, args.result_dir, tag=args.tag, limit=args.eval_limit, out=args.out)
         exit()
 
     # Create model
@@ -771,7 +764,7 @@ if __name__ == '__main__':
     elif args.command == "evaluate":
         # Evaluate
         dataset_val = VesicleDataset()
-        dataset_val.load_vesicle(args.dataset, 'val')
+        dataset_val.load_vesicle(args.dataset, args.subset)
         dataset_val.prepare()
         n_img = len(dataset_val.image_ids) if not args.eval_limit else len(dataset_val.image_ids[:args.eval_limit])
         print(f'Running evaluation on {n_img} images.')
