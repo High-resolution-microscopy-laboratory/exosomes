@@ -31,12 +31,6 @@ def allowed_file(filename):
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
-def is_img_path(path) -> bool:
-    if '.' in path:
-        return path.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
-    return False
-
-
 def get_num_uploads(cur_request) -> int:
     n = 0
     for files in cur_request.files.listvalues():
@@ -122,7 +116,7 @@ def result(result_id):
     directory = os.path.join(UPLOAD_FOLDER, result_id, 'visualised')
     if not os.path.exists(directory):
         abort(404)
-    files = [p for p in sorted(os.listdir(directory)) if is_img_path(p)]
+    files = [p for p in sorted(os.listdir(directory)) if allowed_file(p)]
     return render_template('result.html', result_id=result_id, files=files)
 
 
