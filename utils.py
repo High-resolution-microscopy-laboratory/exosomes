@@ -450,7 +450,7 @@ def bin_mask_to_list(bin_mask):
 
 
 def mask_area(mask) -> float:
-    return cv.contourArea(get_cnt_from_mask(mask))
+    return np.count_nonzero(mask)
 
 
 def area_filter(gt_boxes, gt_class_ids, gt_masks, results, min_area, max_area):
