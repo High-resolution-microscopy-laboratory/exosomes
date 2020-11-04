@@ -427,7 +427,7 @@ def train(model, epochs=EPOCHS, dataset=VesicleDataset):
         keras.callbacks.ModelCheckpoint(model.checkpoint_path,
                                         verbose=0, save_weights_only=True),
     ]
-    neptune_callback = NeptuneCallback("neptunus/exosomes", params, model, inference_model, dataset_val)
+    neptune_callback = NeptuneCallback(args.neptune_project, params, model, inference_model, dataset_val)
     if args.neptune:
         callbacks += [neptune_callback, NeptuneMonitor()]
 
@@ -655,6 +655,9 @@ if __name__ == '__main__':
     parser.add_argument('--neptune', required=False,
                         action='store_true',
                         help='Enable logging to neptune.io')
+    parser.add_argument('--neptune-project', required=False,
+                        type=str,
+                        help='Project name for neptune.io')
     parser.add_argument('--tensorboard', required=False,
                         action='store_true',
                         help='Enable logging to Tensorboard')
