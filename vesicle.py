@@ -19,8 +19,8 @@ DEFAULT_MODEL_PATH = 'models/final2.h5'
 def load_model(weights_path) -> modellib.MaskRCNN:
     # Загрузка модели
     config = VesicleInferenceConfig()
-    with tf.device('/cpu:0'):
-        model = modellib.MaskRCNN(mode="inference", model_dir='model', config=config)
+    # with tf.device('/cpu:0'):
+    model = modellib.MaskRCNN(mode="inference", model_dir='model', config=config)
     model.load_weights(weights_path, by_name=True)
 
     return model

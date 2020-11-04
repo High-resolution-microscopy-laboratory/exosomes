@@ -1,0 +1,10 @@
+-i https://pypi.org/simple
+flask==1.1.2
+gunicorn==20.0.4
+opencv-python==3.4.9.33
+scikit-image==0.17.2
+pandas==1.1.0
+keras==2.1.0
+Werkzeug==0.16.1
+git+https://github.com/vergilijus/Mask_RCNN.git@65106d71a3344c4d73de5e6111c720ab6218e983#egg=mask_rcnn
+

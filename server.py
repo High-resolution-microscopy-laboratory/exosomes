@@ -17,7 +17,7 @@ app = Flask(__name__)
 
 UPLOAD_FOLDER = './uploads'
 ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png', 'tif', 'tiff'}
-MODEL_PATH = 'models/finetune_from_20_lr_0005/vesicle20200710T1339/mask_rcnn_vesicle_0026.h5'
+MODEL_PATH = 'models/mask_rcnn_vesicle.h5'
 IMG_EXT = 'jpg'
 MAX_UPLOADS = 10
 ANNOTATION_FILE_NAME = 'via_region_data_detect.json'
