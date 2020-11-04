@@ -2,14 +2,14 @@
 
 import os
 import shutil
+import time
 
-import mrcnn.model as modellib
 import tensorflow as tf
 
-import detector
+import mrcnn.model as modellib
 import utils
+from config import VesicleInferenceConfig
 from result import ResultWrapper
-import time
 
 DEFAULT_FILE_NAME = 'via_region_data.json'
 DETECTOR_FILE_NAME = 'via_region_data_detect.json'
@@ -18,7 +18,7 @@ DEFAULT_MODEL_PATH = 'models/final2.h5'
 
 def load_model(weights_path) -> modellib.MaskRCNN:
     # Загрузка модели
-    config = detector.VesicleInferenceConfig()
+    config = VesicleInferenceConfig()
     with tf.device('/cpu:0'):
         model = modellib.MaskRCNN(mode="inference", model_dir='model', config=config)
     model.load_weights(weights_path, by_name=True)

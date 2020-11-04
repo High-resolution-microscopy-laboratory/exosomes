@@ -5,7 +5,7 @@ from typing import Dict
 
 import cv2 as cv
 import numpy as np
-from flask import Flask, request, render_template, redirect, url_for, send_from_directory, abort
+from flask import Flask, abort, redirect, render_template, request, send_from_directory, url_for
 from werkzeug.utils import secure_filename
 
 import utils
