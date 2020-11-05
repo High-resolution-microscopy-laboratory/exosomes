@@ -8,3 +8,30 @@ The repository includes:
 * [vesicle.py](vesicle.py) Command line tool for segmentation
 * [Dataset](https://github.com/High-resolution-microscopy-laboratory/exosomes/releases/download/v1.0/dataset.zip)
 * [Trained model](https://github.com/High-resolution-microscopy-laboratory/exosomes/releases/download/v1.0/mask_rcnn_vesicle_0026.h5)
+
+
+## Run web app in docker
+
+1. Install nvidia docker https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html#installing-docker-ce
+2. Download model weights and save it in "model" folder e.g. model/mask_rcnn_vesicle.h5
+
+Run on cpu
+```shell script
+docker run \
+-v $(pwd)/models:/app/models \
+-p 8000:8000 \
+highresolutionimaging/vesicles
+```
+
+Run on gpu
+```shell script
+docker run \
+-v $(pwd)/models:/app/models \
+-p 8000:8000 \
+--gpus all \
+--env TF_FORCE_GPU_ALLOW_GROWTH=true \
+highresolutionimaging/vesicles
+```
+
+Server listening on 0.0.0.0:8000 so you can access app on localhost:8000 or {HOST_IP}:8000
+
