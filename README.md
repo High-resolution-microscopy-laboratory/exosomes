@@ -25,7 +25,7 @@ docker run \
 highresolutionimaging/vesicles
 ```
 
-For example, if you have mask_rcnn_vesicle.h5 in C:\Users\User\Downloads, you should run
+For example, if you use Windows and you have mask_rcnn_vesicle.h5 in C:\Users\User\Downloads, you should run
 ```shell script
 docker run -v C:/Users/User/Downloads/mask_rcnn_vesicle.h5:/app/models/mask_rcnn_vesicle.h5 -p 8000:8000 highresolutionimaging/vesicles
 ```
