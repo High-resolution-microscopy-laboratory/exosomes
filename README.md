@@ -12,32 +12,35 @@ The repository includes:
 
 ## Run web app in docker
 
-First, download [model weights](https://github.com/High-resolution-microscopy-laboratory/exosomes/releases/download/v1.0/mask_rcnn_vesicle.h5).
+1. Install nvidia docker https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html#installing-docker-ce
+2. Download [model weights](https://github.com/High-resolution-microscopy-laboratory/exosomes/releases/download/v1.0/mask_rcnn_vesicle.h5)
 
-1. For Windows, you can run the app using CPU (GPU version is not available). 
-Run the following command from the python prompt (you should place the path to mask_rcnn_vesicle.h5 instead of ${MODEL_PATH}):  
-```python
-docker run -v ${MODEL_PATH}:/app/models/mask_rcnn_vesicle.h5 -p 8000:8000 highresolutionimaging/vesicles
+Run on cpu
+```shell script
+# Change to actual model absolute path
+MODEL_PATH="/path/to/mask_rcnn_vesicle.h5"
+docker run \
+-v ${MODEL_PATH}:/app/models/mask_rcnn_vesicle.h5 \
+-p 8000:8000 \
+highresolutionimaging/vesicles
 ```
 
 For example, if you have mask_rcnn_vesicle.h5 in C:\Users\User\Downloads, you should run
-```python
+```shell script
 docker run -v C:/Users/User/Downloads/mask_rcnn_vesicle.h5:/app/models/mask_rcnn_vesicle.h5 -p 8000:8000 highresolutionimaging/vesicles
 ```
 
-Then open localhost:8000 in the browser
 
-2. For Linux, you can run the app using either CPU or GPU.
-To use CPU, run the following command from the python prompt (you should place the path to mask_rcnn_vesicle.h5 instead of ${MODEL_PATH}):  
-```python
-docker run -v ${MODEL_PATH}:/app/models/mask_rcnn_vesicle.h5 -p 8000:8000 highresolutionimaging/vesicles
+Run on gpu
+```shell script
+# Change to actual model absolute path
+MODEL_PATH="/path/to/mask_rcnn_vesicle.h5"
+docker run \
+-v ${MODEL_PATH}:/app/models/mask_rcnn_vesicle.h5 \
+-p 8000:8000 \
+--gpus all \
+--env TF_FORCE_GPU_ALLOW_GROWTH=true \
+highresolutionimaging/vesicles
 ```
 
-To use GPU, install nvidia docker https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html#installing-docker-ce
-Then run the following (you should place the path to mask_rcnn_vesicle.h5 instead of ${MODEL_PATH}):  
-```python
-docker run -v ${MODEL_PATH}:/app/models/mask_rcnn_vesicle.h5 -p 8000:8000 --gpus all --env TF_FORCE_GPU_ALLOW_GROWTH=true highresolutionimaging/vesicles
-```
-
-You can access the app on localhost:8000 
-
+Server listening on 0.0.0.0:8000 so you can access app on localhost:8000 or {HOST_IP}:8000
