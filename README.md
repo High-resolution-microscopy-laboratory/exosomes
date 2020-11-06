@@ -12,7 +12,7 @@ The repository includes:
 
 ## Run web app in docker
 
-1. Install nvidia docker https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html#installing-docker-ce
+1. Install nvidia docker (Linux only) https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html#installing-docker-ce
 2. Download [model weights](https://github.com/High-resolution-microscopy-laboratory/exosomes/releases/download/v1.0/mask_rcnn_vesicle.h5)
 
 Run on cpu
@@ -31,7 +31,7 @@ docker run -v C:/Users/User/Downloads/mask_rcnn_vesicle.h5:/app/models/mask_rcnn
 ```
 
 
-Run on gpu
+Run on gpu (Linux only)
 ```shell script
 # Change to actual model absolute path
 MODEL_PATH="/path/to/mask_rcnn_vesicle.h5"
